@@ -1,11 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
 export default function EditDayTimeSlot() {
   const [dayDate, setDayDate] = useState('');
-  const [selectedSlots, setSelectedSlots] = useState([]);
+  const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
   interface TimeSlotTemplate {
     id: number;
     slot_time: string;
@@ -64,7 +64,7 @@ export default function EditDayTimeSlot() {
     fetchDayAndSlots();
   }, [id]);
 
-  const handleSlotChange = (e, slotId) => {
+  const handleSlotChange = (e: ChangeEvent<HTMLInputElement>, slotId: number) => {
     if (e.target.checked) {
       setSelectedSlots(prev => [...prev, slotId]);
     } else {
@@ -72,7 +72,7 @@ export default function EditDayTimeSlot() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
     const supabase = createClient();
 
