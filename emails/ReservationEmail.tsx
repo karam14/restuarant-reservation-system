@@ -37,14 +37,15 @@ export const ReservationEmail: React.FC<EmailProps> = ({
   const isCancelled = status === "geannuleerd";
   const isPending = status === "in afwachting";
   const statusColor = isCancelled ? "#FF0000" : isPending ? "#FFA500" : "#4CAF50";
-
+  let formattedReservationTime = reservationTime;
+  if(isPending){
   // Format the reservation time to a more readable format
-  const formattedReservationTime = format(
+   formattedReservationTime = format(
     new Date(reservationTime),
     "EEEE d MMMM yyyy 'om' HH:mm",
     { locale: nl }
   );
-
+  }
   return (
     <Html>
       <Head />
@@ -99,7 +100,7 @@ export const ReservationEmail: React.FC<EmailProps> = ({
                   <br />
                   {isCancelled ? (
                     <>
-                      Uw reservering op <strong>{formattedReservationTime}</strong> is helaas{" "}
+                      Uw reservering op <strong>{reservationTime}</strong> is helaas{" "}
                       <span style={{ color: statusColor, fontWeight: "bold" }}>
                         {status}
                       </span>. We betreuren het dat u uw reservering heeft geannuleerd.
