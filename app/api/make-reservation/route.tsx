@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/client';
 import { zonedTimeToUtc } from 'date-fns-tz';
+import nodemailer from 'nodemailer';
+import { render } from '@react-email/render';
+import ReservationEmail from '@/emails/ReservationEmail';
 
-const RECAPTCHA_SECRET_KEY = '6LefL0sqAAAAAA_YFjAC8dfPua614Pt9-Wi6gE6X'; // Replace with your actual reCAPTCHA secret key
+const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
 
 export async function OPTIONS(req: NextRequest) {
   const headers = new Headers();
@@ -70,7 +73,40 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return new NextResponse(JSON.stringify({ message: 'Reservation successfully made' }), {
+  // Send confirmation email to the guest
+  const emailHtml = await render(
+    <ReservationEmail
+      guestName={name}
+      reservationTime={reservationTime}
+      status="in afwachting"
+      emailAddress="info@athenesolijf.com"
+    />
+  );
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT || '587', 10),
+    secure: true, // True for 465, false for other ports
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Uw reservering bij Athenes Olijf is ontvangen',
+    html: emailHtml,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('Fout bij het verzenden van de bevestigingsmail:', error);
+  }
+
+  return new NextResponse(JSON.stringify({ message: 'Reservation successfully made and confirmation email sent' }), {
     status: 200,
     headers,
   });

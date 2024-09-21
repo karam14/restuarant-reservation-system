@@ -33,7 +33,9 @@ export default function ReservationDetail() {
           setGuestName(data.guest_name);
           setGuestEmail(data.guest_email);
           setGuestPhone(data.guest_phone);
-          setReservationTime(data.reservation_time);
+          // Convert the reservation time to the correct format for datetime-local input
+          const formattedTime = new Date(data.reservation_time).toISOString().slice(0, 16);
+          setReservationTime(formattedTime);
           setStatus(data.status);
         }
         setLoading(false);
@@ -45,7 +47,7 @@ export default function ReservationDetail() {
 
   const handleUpdate = async () => {
     const supabase = createClient();
-
+  
     const { error } = await supabase
       .from('reservations')
       .update({
@@ -56,28 +58,96 @@ export default function ReservationDetail() {
         status,
       })
       .eq('id', id);
-
+  
     if (error) {
       console.error('Fout bij het bijwerken van reservering:', error);
     } else {
+      // Send confirmation or cancellation email
+      let emailStatus = '';
+      if (status === 'confirmed') {
+        emailStatus = 'bevestigd';
+      } else if (status === 'cancelled') {
+        emailStatus = 'geannuleerd';
+      }
+  
+      if (emailStatus) {
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: guestEmail,
+            guestName,
+            reservationTime: new Date(reservationTime).toLocaleString('nl-NL', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            status: emailStatus,
+            isConfirmation: true, // This ensures the email is sent as a confirmation or cancellation email
+          }),
+        });
+      }
+  
       router.back();
     }
   };
+  
 
   const handleDelete = async () => {
     const supabase = createClient();
-
-    const { error } = await supabase
+  
+    // Fetch the reservation details before deleting
+    const { data: reservation, error: fetchError } = await supabase
+      .from('reservations')
+      .select('*')
+      .eq('id', id)
+      .single();
+  
+    if (fetchError) {
+      console.error('Fout bij het ophalen van reservering:', fetchError);
+      return;
+    }
+  
+    // Send cancellation email if the reservation exists
+    if (reservation) {
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: reservation.guest_email,
+          guestName: reservation.guest_name,
+          reservationTime: new Date(reservation.reservation_time).toLocaleString('nl-NL', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          status: 'geannuleerd',
+          isConfirmation: true, // This ensures the email is sent as a cancellation email
+        }),
+      });
+    }
+  
+    // Now delete the reservation
+    const { error: deleteError } = await supabase
       .from('reservations')
       .delete()
       .eq('id', id);
-
-    if (error) {
-      console.error('Fout bij het verwijderen van reservering:', error);
+  
+    if (deleteError) {
+      console.error('Fout bij het verwijderen van reservering:', deleteError);
     } else {
       router.back();
     }
   };
+  
 
   const handleBack = () => {
     router.back();

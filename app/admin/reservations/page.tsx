@@ -59,23 +59,71 @@ export default function Reservations() {
 
   const handleConfirm = async (id: number) => {
     const supabase = createClient();
-    const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id);
+    const { data: reservation, error } = await supabase.from('reservations').select('*').eq('id', id).single();
+  
     if (error) {
-      console.error('Fout bij het bevestigen van reservering:', error);
+      console.error('Fout bij het ophalen van reservering:', error);
+      return;
+    }
+  
+    const { error: updateError } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id);
+  
+    if (updateError) {
+      console.error('Fout bij het bevestigen van reservering:', updateError);
     } else {
       updateReservationStatus(id, 'confirmed');
+      
+      // Send confirmation email
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: reservation.guest_email,
+          guestName: reservation.guest_name,
+          reservationTime: format(new Date(reservation.reservation_time), 'PPPp', { locale: nl }),
+          status: 'bevestigd',
+          isConfirmation: true // This indicates that this is a confirmation email
+        }),
+      });
     }
   };
-
+  
   const handleCancel = async (id: number) => {
     const supabase = createClient();
-    const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id);
+    const { data: reservation, error } = await supabase.from('reservations').select('*').eq('id', id).single();
+  
     if (error) {
-      console.error('Fout bij het annuleren van reservering:', error);
+      console.error('Fout bij het ophalen van reservering:', error);
+      return;
+    }
+  
+    const { error: updateError } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id);
+  
+    if (updateError) {
+      console.error('Fout bij het annuleren van reservering:', updateError);
     } else {
       updateReservationStatus(id, 'cancelled');
+  
+      // Send cancellation email
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: reservation.guest_email,
+          guestName: reservation.guest_name,
+          reservationTime: format(new Date(reservation.reservation_time), 'PPPp', { locale: nl }),
+          status: 'geannuleerd',
+          isConfirmation: true // This indicates that this is a confirmation email
+        }),
+      });
     }
   };
+  
+  
 
   const filteredReservations = reservations
     .filter((reservation) => {
