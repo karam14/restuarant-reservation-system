@@ -12,6 +12,8 @@ import {
 } from "@react-email/components";
 import { Tailwind } from "@react-email/tailwind";
 import * as React from "react";
+import { format } from "date-fns";
+import { nl } from "date-fns/locale";
 
 type EmailProps = {
   guestName: string;
@@ -33,7 +35,15 @@ export const ReservationEmail: React.FC<EmailProps> = ({
   isConfirmation = false,
 }) => {
   const isCancelled = status === "geannuleerd";
-  const statusColor = isCancelled ? "#FF0000" : "#4CAF50";
+  const isPending = status === "in afwachting";
+  const statusColor = isCancelled ? "#FF0000" : isPending ? "#FFA500" : "#4CAF50";
+
+  // Format the reservation time to a more readable format
+  const formattedReservationTime = format(
+    new Date(reservationTime),
+    "EEEE d MMMM yyyy 'om' HH:mm",
+    { locale: nl }
+  );
 
   return (
     <Html>
@@ -87,21 +97,32 @@ export const ReservationEmail: React.FC<EmailProps> = ({
                 <Text className="text-base leading-6 text-gray-700">
                   Beste {guestName},<br />
                   <br />
-                  {isCancelled
-                    ? (
-                        <>
-                          Uw reservering op <strong>{reservationTime}</strong> is helaas <span style={{ color: statusColor, fontWeight: 'bold' }}>{status}</span>. We betreuren het dat u uw reservering heeft geannuleerd.
-                          <br /><br />
-                          Als u vragen heeft of als u op een ander moment wilt reserveren, aarzel dan niet om contact met ons op te nemen via <a href={`mailto:${emailAddress}`} className="text-brand">{emailAddress}</a>.
-                        </>
-                      )
-                    : (
-                        <>
-                          Hartelijk dank voor uw reservering bij <strong>Athenes Olijf</strong>. We zijn verheugd om u binnenkort te mogen verwelkomen.
-                          <br /><br />
-                          Uw reservering op <strong>{reservationTime}</strong> is nu <span style={{ color: statusColor, fontWeight: 'bold' }}>{status}</span>.
-                        </>
-                      )}
+                  {isCancelled ? (
+                    <>
+                      Uw reservering op <strong>{formattedReservationTime}</strong> is helaas{" "}
+                      <span style={{ color: statusColor, fontWeight: "bold" }}>
+                        {status}
+                      </span>. We betreuren het dat u uw reservering heeft geannuleerd.
+                      <br />
+                      <br />
+                      Als u vragen heeft of als u op een ander moment wilt reserveren, aarzel dan niet om contact met ons op te nemen via{" "}
+                      <a href={`mailto:${emailAddress}`} className="text-brand">
+                        {emailAddress}
+                      </a>.
+                    </>
+                  ) : (
+                    <>
+                      Hartelijk dank voor uw reservering bij{" "}
+                      <strong>Athenes Olijf</strong>. We zijn verheugd om u binnenkort te
+                      mogen verwelkomen.
+                      <br />
+                      <br />
+                      Uw reservering op <strong>{formattedReservationTime}</strong> is nu{" "}
+                      <span style={{ color: statusColor, fontWeight: "bold" }}>
+                        {status}
+                      </span>.
+                    </>
+                  )}
                   <br />
                   <br />
                   Met vriendelijke groet,<br />
@@ -114,9 +135,13 @@ export const ReservationEmail: React.FC<EmailProps> = ({
           <Container className="mt-20">
             <Section>
               <Text className="text-center text-gray-400 mb-20 leading-6">
-                Heeft u vragen over deze reservering? Neem gerust contact met ons op via <a href={`mailto:${emailAddress}`} className="text-brand">{emailAddress}</a>.
+                Heeft u vragen over deze reservering? Neem gerust contact met ons op via{" "}
+                <a href={`mailto:${emailAddress}`} className="text-brand">
+                  {emailAddress}
+                </a>.
                 <br />
-                N.B. Deze e-mail is automatisch verzonden. Reacties op deze mail kunnen wij helaas niet beantwoorden.
+                N.B. Deze e-mail is automatisch verzonden. Reacties op deze mail kunnen
+                wij helaas niet beantwoorden.
               </Text>
             </Section>
           </Container>

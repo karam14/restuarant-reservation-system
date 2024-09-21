@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       guestName={name}
       reservationTime={reservationTime}
       status="in afwachting"
-      emailAddress="info@athenesolijf.com"
+      emailAddress="info@athenesolijf.nl"
     />
   );
 
