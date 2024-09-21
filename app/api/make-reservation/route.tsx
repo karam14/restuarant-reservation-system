@@ -5,7 +5,12 @@ export async function POST(req: NextRequest) {
   const { date, block, name, phone, peopleCount, email } = await req.json();
 
   if (!date || !block || !name || !phone || !peopleCount || !email) {
-    return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
+    return new NextResponse(JSON.stringify({ error: 'All fields are required' }), {
+      status: 400,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+      },
+    });
   }
 
   // Combine the date and block time to create the reservation_time
@@ -28,8 +33,18 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (reservationError) {
-    return NextResponse.json({ error: 'Error making reservation' }, { status: 500 });
+    return new NextResponse(JSON.stringify({ error: 'Error making reservation' }), {
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+      },
+    });
   }
 
-  return NextResponse.json({ message: 'Reservation successfully made' });
+  return new NextResponse(JSON.stringify({ message: 'Reservation successfully made' }), {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+    },
+  });
 }

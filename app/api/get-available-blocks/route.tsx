@@ -6,20 +6,30 @@ export async function GET(req: NextRequest) {
   const date = searchParams.get('date');
 
   if (!date) {
-    return NextResponse.json({ error: 'Date is required' }, { status: 400 });
+    return new NextResponse(JSON.stringify({ error: 'Date is required' }), {
+      status: 400,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+      },
+    });
   }
 
   const supabase = createClient();
 
-  // Check if the date is an "afwijkende dag"
+  // Attempt to fetch the day data
   const { data: dayData, error: dayError } = await supabase
     .from('days')
     .select('id')
     .eq('day_date', date)
-    .maybeSingle();
+    .single();
 
-  if (dayError) {
-    return NextResponse.json({ error: 'Error fetching day data' }, { status: 500 });
+  if (dayError && dayError.code !== 'PGRST116') {  // Handle no rows found error
+    return new NextResponse(JSON.stringify({ error: 'Error fetching day data' }), {
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+      },
+    });
   }
 
   let timeSlots: string | any[] = [];
@@ -32,14 +42,19 @@ export async function GET(req: NextRequest) {
       .eq('day_id', dayData.id);
 
     if (customSlotsError) {
-      return NextResponse.json({ error: 'Error fetching custom time slots' }, { status: 500 });
+      return new NextResponse(JSON.stringify({ error: 'Error fetching custom time slots' }), {
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+        },
+      });
     }
 
     timeSlots = customSlots.map((slot: any) => ({
       id: slot.id,
       label: slot.time_slot_templates.slot_time,
     }));
-  } 
+  }
 
   if (timeSlots.length === 0) {
     // It's not an "afwijkende dag" or no custom slots were found, fetch standard time slots
@@ -49,7 +64,12 @@ export async function GET(req: NextRequest) {
       .order('slot_time', { ascending: true });
 
     if (standardSlotsError) {
-      return NextResponse.json({ error: 'Error fetching standard time slots' }, { status: 500 });
+      return new NextResponse(JSON.stringify({ error: 'Error fetching standard time slots' }), {
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+        },
+      });
     }
 
     timeSlots = standardSlots.map((slot: any) => ({
@@ -58,5 +78,10 @@ export async function GET(req: NextRequest) {
     }));
   }
 
-  return NextResponse.json({ timeSlots });
+  return new NextResponse(JSON.stringify({ timeSlots }), {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+    },
+  });
 }
