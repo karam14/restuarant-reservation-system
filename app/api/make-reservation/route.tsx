@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/client';
 
-export async function POST(req: NextRequest) {
-  // Set CORS headers
-  const headers = {
-    'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
+export async function OPTIONS(req: NextRequest) {
+  const headers = new Headers();
+  headers.set('Access-Control-Allow-Origin', 'https://athenesolijf.nl');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return new NextResponse(null, { status: 204, headers });
-  }
+  return new NextResponse(null, { headers, status: 204 });
+}
+
+export async function POST(req: NextRequest) {
+  const headers = new Headers();
+  headers.set('Access-Control-Allow-Origin', 'https://athenesolijf.nl');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type');
 
   const { date, block, name, phone, peopleCount, email } = await req.json();
 
