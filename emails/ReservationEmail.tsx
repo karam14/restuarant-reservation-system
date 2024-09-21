@@ -110,6 +110,18 @@ export const ReservationEmail: React.FC<EmailProps> = ({
                         {emailAddress}
                       </a>.
                     </>
+                  ) : isPending ? (
+                    <>
+                      Hartelijk dank voor uw reservering bij{" "}
+                      <strong>Athenes Olijf</strong>. We zijn verheugd om u binnenkort te
+                      mogen verwelkomen.
+                      <br />
+                      <br />
+                      Uw reservering op <strong>{formattedReservationTime}</strong> is momenteel{" "}
+                      <span style={{ color: statusColor, fontWeight: "bold" }}>
+                        in afwachting op goedkeuring
+                      </span>. U ontvangt een e-mail zodra uw reservering is bevestigd.
+                    </>
                   ) : (
                     <>
                       Hartelijk dank voor uw reservering bij{" "}
