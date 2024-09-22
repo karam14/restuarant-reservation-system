@@ -4,16 +4,21 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronDown, LogOut } from 'lucide-react';
+import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
+import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isReservationsOpen, setIsReservationsOpen] = useState(false);
   const [isTimeSlotsOpen, setIsTimeSlotsOpen] = useState(false);
 
+  const session = useSession();
+  const supabaseClient = useSupabaseClient();
+  const router = useRouter();
+
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
-    // Close dropdowns when toggling the mobile menu
     setIsReservationsOpen(false);
     setIsTimeSlotsOpen(false);
   };
@@ -24,6 +29,11 @@ export default function Navbar() {
 
   const toggleTimeSlotsDropdown = () => {
     setIsTimeSlotsOpen(!isTimeSlotsOpen);
+  };
+
+  const handleLogout = async () => {
+    await supabaseClient.auth.signOut();
+    router.push('/login');
   };
 
   return (
@@ -145,6 +155,19 @@ export default function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            {session && (
+              <div className="w-full lg:w-auto">
+                <Button
+                  variant="ghost"
+                  onClick={handleLogout}
+                  className="block w-full py-2 px-4 text-left text-white bg-gray-700 hover:bg-gray-600"
+                >
+                  <LogOut className="inline-block mr-2" />
+                  Uitloggen
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

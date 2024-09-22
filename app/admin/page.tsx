@@ -21,13 +21,7 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        <div className="border border-gray-300 p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold mb-4">Feestdagen Beheren</h2>
-          <p className="mb-4">Configureer feestdagen en andere speciale dagen waarop reserveringen gesloten moeten zijn.</p>
-          <Link href="/admin/holidays" className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
-            Ga naar Feestdagen
-          </Link>
-        </div>
+  
       </div>
     </div>
   );
