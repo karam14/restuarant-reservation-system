@@ -7,7 +7,7 @@ import ReservationEmail from '@/emails/ReservationEmail';
 import { nl } from 'date-fns/locale';
 import { format } from 'date-fns';
 
-const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
+// const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
 
 export async function OPTIONS(req: NextRequest) {
   const headers = new Headers();
@@ -34,24 +34,25 @@ export async function POST(req: NextRequest) {
   }
 
   // Verify reCAPTCHA token
-  const recaptchaResponse = await fetch(`https://www.google.com/recaptcha/api/siteverify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `secret=${RECAPTCHA_SECRET_KEY}&response=${recaptchaToken}`
-  });
+  // const recaptchaResponse = await fetch(`https://www.google.com/recaptcha/api/siteverify`, {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  //   body: `secret=${RECAPTCHA_SECRET_KEY}&response=${recaptchaToken}`
+  // });
 
-  const recaptchaData = await recaptchaResponse.json();
+  // const recaptchaData = await recaptchaResponse.json();
 
-  if (!recaptchaData.success || recaptchaData.score < 0.5) {
-    return new NextResponse(JSON.stringify({ error: 'CAPTCHA verification failed' }), {
-      status: 400,
-      headers,
-    });
-  }
+  // if (!recaptchaData.success || recaptchaData.score < 0.5) {
+  //   return new NextResponse(JSON.stringify({ error: 'CAPTCHA verification failed' }), {
+  //     status: 400,
+  //     headers,
+  //   });
+  // }
 
   // Convert the time from Amsterdam timezone to UTC before saving
   const amsterdamTime = new Date(`${date}T${block}:00`);
   const formatted = format(new Date(amsterdamTime), 'PPPp', { locale: nl })
+  const reservationTime = zonedTimeToUtc(amsterdamTime, 'Europe/Amsterdam').toISOString();
 
   const supabase = createClient();
 
@@ -62,14 +63,14 @@ export async function POST(req: NextRequest) {
         guest_name: name,
         guest_phone: phone,
         guest_email: email,
-        reservation_time: formatted,
+        reservation_time: reservationTime,
         status: 'pending',
       },
     ])
     .single();
 
   if (reservationError) {
-    return new NextResponse(JSON.stringify({ error: 'Error making reservation' }), {
+    return new NextResponse(JSON.stringify({ error: 'Error making reservation' , reservationError}), {
       status: 500,
       headers,
     });
