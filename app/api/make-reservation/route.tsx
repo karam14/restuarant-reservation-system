@@ -4,6 +4,8 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 import nodemailer from 'nodemailer';
 import { render } from '@react-email/render';
 import ReservationEmail from '@/emails/ReservationEmail';
+import { nl } from 'date-fns/locale';
+import { format } from 'date-fns';
 
 const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
 
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   // Convert the time from Amsterdam timezone to UTC before saving
   const amsterdamTime = new Date(`${date}T${block}:00`);
-  const reservationTime = zonedTimeToUtc(amsterdamTime, 'Europe/Amsterdam').toISOString();
+  const formatted = format(new Date(amsterdamTime), 'PPPp', { locale: nl })
 
   const supabase = createClient();
 
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
         guest_name: name,
         guest_phone: phone,
         guest_email: email,
-        reservation_time: reservationTime,
+        reservation_time: formatted,
         status: 'pending',
       },
     ])
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest) {
   const emailHtml = await render(
     <ReservationEmail
       guestName={name}
-      reservationTime={reservationTime}
+      reservationTime={formatted}
       status="in afwachting"
       emailAddress="info@athenesolijf.nl"
     />
