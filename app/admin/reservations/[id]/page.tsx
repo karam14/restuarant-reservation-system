@@ -15,6 +15,7 @@ export default function ReservationDetail() {
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [reservationTime, setReservationTime] = useState('');
+  const [guestsCount, setGuestsCount] = useState(1); // Add state for guests_count
   const [status, setStatus] = useState('pending');
   const [loading, setLoading] = useState(true);
 
@@ -36,6 +37,7 @@ export default function ReservationDetail() {
           setGuestName(data.guest_name);
           setGuestEmail(data.guest_email);
           setGuestPhone(data.guest_phone);
+          setGuestsCount(data.guests_count); // Set guests_count
 
           // Convert UTC time from database to local time
           const localTime = utcToZonedTime(data.reservation_time, 'Europe/Amsterdam');
@@ -64,6 +66,7 @@ export default function ReservationDetail() {
         guest_email: guestEmail,
         guest_phone: guestPhone,
         reservation_time: utcTime.toISOString(), // Convert to UTC before saving
+        guests_count: guestsCount, // Include guests_count in update
         status,
       })
       .eq('id', id);
@@ -193,6 +196,17 @@ export default function ReservationDetail() {
             value={reservationTime}
             onChange={(e) => setReservationTime(e.target.value)}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Aantal gasten</label>
+          <input
+            type="number"
+            value={guestsCount}
+            onChange={(e) => setGuestsCount(parseInt(e.target.value))}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            min="1"
           />
         </div>
 

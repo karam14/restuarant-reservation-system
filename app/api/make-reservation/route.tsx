@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
         guest_phone: phone,
         guest_email: email,
         reservation_time: reservationTime,
+        guests_count: peopleCount,
         status: 'pending',
       },
     ])

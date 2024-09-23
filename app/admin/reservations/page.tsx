@@ -11,6 +11,7 @@ export default function Reservations() {
     id: number;
     guest_name: string;
     reservation_time: string;
+    guests_count: number;
     status: string;
   }
 
@@ -184,6 +185,7 @@ export default function Reservations() {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gastnaam</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum en Tijd</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aantal Personen</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acties</th>
             </tr>
@@ -195,6 +197,7 @@ export default function Reservations() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {format(new Date(reservation.reservation_time), 'PPPp', { locale: nl })}
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reservation.guests_count}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' : reservation.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
                     {reservation.status === 'confirmed' ? 'Bevestigd' : reservation.status === 'cancelled' ? 'Geannuleerd' : 'In afwachting'}
