@@ -1,26 +1,34 @@
 'use client';
-import { SetStateAction, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { nl } from 'date-fns/locale';
-
+import ReservationFilters from './_components/reservation-filters';
 export default function Reservations() {
   interface Reservation {
     id: number;
     guest_name: string;
+    guest_email: string;
     reservation_time: string;
     guests_count: number;
     status: string;
+    created_at: string;
   }
 
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filter and Sorting States
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDate, setFilterDate] = useState('');
-  const router = useRouter();
+  const [filterReservationStartDate, setFilterReservationStartDate] = useState('');
+  const [filterReservationEndDate, setFilterReservationEndDate] = useState('');
+  const [filterCreationExactDate, setFilterCreationExactDate] = useState(''); // NEW exact filter
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     const supabase = createClient();
@@ -37,18 +45,6 @@ export default function Reservations() {
 
     fetchReservations();
   }, []);
-
-  const handleFilterChange = (event: { target: { value: SetStateAction<string>; }; }) => {
-    setFilterStatus(event.target.value);
-  };
-
-  const handleSearchChange = (event: { target: { value: string; }; }) => {
-    setSearchQuery(event.target.value.toLowerCase());
-  };
-
-  const handleDateChange = (event: { target: { value: SetStateAction<string>; }; }) => {
-    setFilterDate(event.target.value);
-  };
 
   const updateReservationStatus = (id: number, newStatus: string) => {
     setReservations((prevReservations) =>
@@ -73,24 +69,21 @@ export default function Reservations() {
       console.error('Fout bij het bevestigen van reservering:', updateError);
     } else {
       updateReservationStatus(id, 'confirmed');
-      
-      // Send confirmation email
+
       await fetch('/api/send-email', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: reservation.guest_email,
           guestName: reservation.guest_name,
           reservationTime: format(new Date(reservation.reservation_time), 'PPPp', { locale: nl }),
           status: 'bevestigd',
-          isConfirmation: true // This indicates that this is a confirmation email
+          isConfirmation: true
         }),
       });
     }
   };
-  
+
   const handleCancel = async (id: number) => {
     const supabase = createClient();
     const { data: reservation, error } = await supabase.from('reservations').select('*').eq('id', id).single();
@@ -106,39 +99,69 @@ export default function Reservations() {
       console.error('Fout bij het annuleren van reservering:', updateError);
     } else {
       updateReservationStatus(id, 'cancelled');
-  
-      // Send cancellation email
+
       await fetch('/api/send-email', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: reservation.guest_email,
           guestName: reservation.guest_name,
           reservationTime: format(new Date(reservation.reservation_time), 'PPPp', { locale: nl }),
           status: 'geannuleerd',
-          isConfirmation: true // This indicates that this is a confirmation email
+          isConfirmation: true
         }),
       });
     }
   };
-  
-  
 
   const filteredReservations = reservations
-    .filter((reservation) => {
-      if (filterStatus !== 'all' && reservation.status !== filterStatus) {
+  .filter((reservation) => {
+    if (filterStatus !== 'all' && reservation.status !== filterStatus) {
+      return false;
+    }
+    if (searchQuery && !reservation.guest_name.toLowerCase().includes(searchQuery)) {
+      return false;
+    }
+    if (filterDate && format(parseISO(reservation.reservation_time), 'yyyy-MM-dd') !== filterDate) {
+      return false;
+    }
+
+    // Reserveringsdatum Range Filter
+    if (filterReservationStartDate && filterReservationEndDate) {
+      const resTime = new Date(reservation.reservation_time);
+      const start = new Date(filterReservationStartDate);
+      const end = new Date(filterReservationEndDate);
+      end.setHours(23, 59, 59, 999); // Ensure end of the day is included
+
+      if (!(resTime >= start && resTime <= end)) {
         return false;
       }
-      if (searchQuery && !reservation.guest_name.toLowerCase().includes(searchQuery)) {
+    }
+
+    // Exact Creation Date Filter
+    if (filterCreationExactDate && format(parseISO(reservation.created_at), 'yyyy-MM-dd') !== filterCreationExactDate) {
+      return false;
+    }
+
+    // Aanmaakdatum Range Filter
+    if (filterStartDate && filterEndDate) {
+      const createdAt = new Date(reservation.created_at);
+      const start = new Date(filterStartDate);
+      const end = new Date(filterEndDate);
+      end.setHours(23, 59, 59, 999); // Ensure end of the day is included
+
+      if (!(createdAt >= start && createdAt <= end)) {
         return false;
       }
-      if (filterDate && format(parseISO(reservation.reservation_time), 'yyyy-MM-dd') !== filterDate) {
-        return false;
-      }
-      return true;
-    });
+    }
+
+    return true;
+  })
+  .sort((a, b) => {
+    return sortOrder === 'asc'
+      ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   if (loading) {
     return <div className="p-8">Laden...</div>;
@@ -146,62 +169,74 @@ export default function Reservations() {
 
   return (
     <div className="max-w-full mx-auto p-4 sm:p-6 lg:p-8">
-      {/* Topbar met filters en knop voor nieuwe reservering */}
+      {/* Filters Section */}
+      <ReservationFilters
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        filterDate={filterDate}
+        setFilterDate={setFilterDate}
+        filterReservationStartDate={filterReservationStartDate}
+        setFilterReservationStartDate={setFilterReservationStartDate}
+        filterReservationEndDate={filterReservationEndDate}
+        setFilterReservationEndDate={setFilterReservationEndDate}
+        filterCreationExactDate={filterCreationExactDate}
+        setFilterCreationExactDate={setFilterCreationExactDate}
+        filterStartDate={filterStartDate}
+        setFilterStartDate={setFilterStartDate}
+        filterEndDate={filterEndDate}
+        setFilterEndDate={setFilterEndDate}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+      />
+  
       <div className="flex justify-between items-center mb-6">
-        <div className="flex space-x-4">
-          <input
-            type="text"
-            placeholder="Zoeken op naam..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
-          />
-          <select
-            value={filterStatus}
-            onChange={handleFilterChange}
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
-          >
-            <option value="all">Alle Statussen</option>
-            <option value="pending">In afwachting</option>
-            <option value="confirmed">Bevestigd</option>
-            <option value="cancelled">Geannuleerd</option>
-          </select>
-          <input
-            type="date"
-            value={filterDate}
-            onChange={handleDateChange}
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
-          />
-        </div>
         <Link href="/admin/reservations/create" className="bg-emerald-500 text-white px-4 py-2 rounded-md hover:bg-emerald-600 transition">
           + Nieuwe Reservering
         </Link>
       </div>
-
-      {/* Tabel met reserveringen */}
+  
+      {/* Reservations Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
           <thead className="bg-gray-100">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gastnaam</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum en Tijd</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aantal Personen</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acties</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gastnaam</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum en Tijd</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aantal Personen</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gemaakt Op</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acties</th>
             </tr>
           </thead>
           <tbody>
             {filteredReservations.map((reservation) => (
               <tr key={reservation.id} className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{reservation.guest_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 text-sm font-medium text-gray-900">{reservation.guest_name}</td>
+                <td className="px-6 py-4 text-sm text-gray-500">
                   {format(new Date(reservation.reservation_time), 'PPPp', { locale: nl })}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{reservation.guests_count}</td>
+                <td className="px-6 py-4 text-sm text-gray-500">{reservation.guests_count}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' : reservation.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                    {reservation.status === 'confirmed' ? 'Bevestigd' : reservation.status === 'cancelled' ? 'Geannuleerd' : 'In afwachting'}
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      reservation.status === 'confirmed'
+                        ? 'bg-green-100 text-green-800'
+                        : reservation.status === 'cancelled'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
+                    {reservation.status === 'confirmed'
+                      ? 'Bevestigd'
+                      : reservation.status === 'cancelled'
+                      ? 'Geannuleerd'
+                      : 'In afwachting'}
                   </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {format(new Date(reservation.created_at), 'PPPp', { locale: nl })}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end space-x-2">
@@ -221,7 +256,10 @@ export default function Reservations() {
                         </button>
                       </>
                     )}
-                    <Link href={`/admin/reservations/${reservation.id}`} className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition">
+                    <Link
+                      href={`/admin/reservations/${reservation.id}`}
+                      className="bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600 transition"
+                    >
                       Bekijk Details
                     </Link>
                   </div>
@@ -233,4 +271,5 @@ export default function Reservations() {
       </div>
     </div>
   );
+  
 }
