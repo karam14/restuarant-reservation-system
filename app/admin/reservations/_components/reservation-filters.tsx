@@ -169,6 +169,32 @@ export default function ReservationFilters({
                 <button onClick={() => setFilterCreationExactDate('')} className="text-red-500">✖</button>
               )}
             </div>
+
+            {/* Date Range Filter */}
+            <label className="text-gray-700 text-sm font-medium">Gemaakt tussen</label>
+            <div className="flex space-x-2">
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => {
+                  setFilterStartDate(e.target.value);
+                  setFilterCreationExactDate('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 w-full"
+              />
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => {
+                  setFilterEndDate(e.target.value);
+                  setFilterCreationExactDate('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 w-full"
+              />
+              {(filterStartDate || filterEndDate) && (
+                <button onClick={() => { setFilterStartDate(''); setFilterEndDate(''); }} className="text-red-500">✖</button>
+              )}
+            </div>
           </div>
         )}
       </div>
