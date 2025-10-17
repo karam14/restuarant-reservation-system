@@ -121,8 +121,13 @@ export default function CreateReservation() {
       }
 
       // Validate the requested time slot is in the available list
-      if (availableTimeSlots.length > 0 && !availableTimeSlots.includes(time)) {
-        setWarning(`Dit tijdslot (${time}) is niet beschikbaar voor ${date}. Beschikbare tijdsloten: ${availableTimeSlots.join(', ')}. Wilt u toch doorgaan?`);
+      // Normalize time formats for comparison (handle both HH:MM and HH:MM:SS)
+      const normalizeTime = (timeStr: string) => timeStr.substring(0, 5);
+      const normalizedTime = normalizeTime(time);
+      const normalizedAvailableSlots = availableTimeSlots.map(slot => normalizeTime(slot));
+      
+      if (availableTimeSlots.length > 0 && !normalizedAvailableSlots.includes(normalizedTime)) {
+        setWarning(`Dit tijdslot (${time}) is niet beschikbaar voor ${date}. Beschikbare tijdsloten: ${availableTimeSlots.map(s => normalizeTime(s)).join(', ')}. Wilt u toch doorgaan?`);
         setLoading(false);
         return;
       }

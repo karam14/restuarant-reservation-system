@@ -131,7 +131,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Validate the requested time slot is in the available list
-  if (!availableTimeSlots.includes(block)) {
+  // Normalize time formats for comparison (handle both HH:MM and HH:MM:SS)
+  const normalizeTime = (time: string) => time.substring(0, 5); // Get HH:MM only
+  const normalizedBlock = normalizeTime(block);
+  const normalizedAvailableSlots = availableTimeSlots.map(slot => normalizeTime(slot));
+  
+  if (availableTimeSlots.length > 0 && !normalizedAvailableSlots.includes(normalizedBlock)) {
     return new NextResponse(JSON.stringify({ error: 'Dit tijdslot is niet beschikbaar voor de geselecteerde datum' }), {
       status: 400,
       headers,
