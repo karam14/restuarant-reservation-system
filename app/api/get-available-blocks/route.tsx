@@ -16,10 +16,14 @@ export async function GET(req: NextRequest) {
 
   const supabase = createClient();
 
-  // Attempt to fetch the day data
+  // Get day of week (0=Sunday, 1=Monday, ..., 6=Saturday)
+  const dateObj = new Date(date + 'T00:00:00');
+  const dayOfWeek = dateObj.getDay();
+
+  // Attempt to fetch the specific day data
   const { data: dayData, error: dayError } = await supabase
     .from('days')
-    .select('id')
+    .select('id, is_enabled')
     .eq('day_date', date)
     .single();
 
@@ -33,6 +37,17 @@ export async function GET(req: NextRequest) {
   }
 
   let timeSlots: string | any[] = [];
+
+  // Check if this specific day is explicitly disabled
+  if (dayData && dayData.is_enabled === false) {
+    // Day is explicitly disabled, return empty time slots
+    return new NextResponse(JSON.stringify({ timeSlots: [] }), {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+      },
+    });
+  }
 
   if (dayData) {
     // It's an "afwijkende dag", fetch custom time slots
@@ -56,8 +71,61 @@ export async function GET(req: NextRequest) {
     }));
   }
 
+  // If no custom time slots, check weekly schedule
   if (timeSlots.length === 0) {
-    // It's not an "afwijkende dag" or no custom slots were found, fetch standard time slots
+    // Fetch weekly schedule for this day of week
+    const { data: weeklySchedule, error: weeklyScheduleError } = await supabase
+      .from('weekly_schedule')
+      .select('id, is_enabled')
+      .eq('day_of_week', dayOfWeek)
+      .single();
+
+    if (weeklyScheduleError && weeklyScheduleError.code !== 'PGRST116') {
+      return new NextResponse(JSON.stringify({ error: 'Error fetching weekly schedule' }), {
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+        },
+      });
+    }
+
+    // If weekly schedule exists and is disabled, return empty
+    if (weeklySchedule && !weeklySchedule.is_enabled) {
+      return new NextResponse(JSON.stringify({ timeSlots: [] }), {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+        },
+      });
+    }
+
+    // If weekly schedule exists and is enabled, fetch its time slots
+    if (weeklySchedule && weeklySchedule.is_enabled) {
+      const { data: weeklySlots, error: weeklySlotsError } = await supabase
+        .from('weekly_schedule_time_slots')
+        .select('id, time_slot_templates(id, slot_time)')
+        .eq('weekly_schedule_id', weeklySchedule.id);
+
+      if (weeklySlotsError) {
+        return new NextResponse(JSON.stringify({ error: 'Error fetching weekly time slots' }), {
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
+          },
+        });
+      }
+
+      if (weeklySlots && weeklySlots.length > 0) {
+        timeSlots = weeklySlots.map((slot: any) => ({
+          id: slot.time_slot_templates.id,
+          label: slot.time_slot_templates.slot_time,
+        }));
+      }
+    }
+  }
+
+  // Fallback to all standard time slots if no weekly schedule or no weekly time slots
+  if (timeSlots.length === 0) {
     const { data: standardSlots, error: standardSlotsError } = await supabase
       .from('time_slot_templates')
       .select('id, slot_time')

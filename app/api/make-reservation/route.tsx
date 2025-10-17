@@ -31,12 +31,117 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const supabase = createClient();
+
+  // VALIDATE DAY/TIME AVAILABILITY BEFORE ACCEPTING RESERVATION
+  const dateObj = new Date(date + 'T00:00:00');
+  const dayOfWeek = dateObj.getDay();
+
+  // Check if this specific day exists and is disabled
+  const { data: dayData, error: dayError } = await supabase
+    .from('days')
+    .select('id, is_enabled')
+    .eq('day_date', date)
+    .single();
+
+  if (dayError && dayError.code !== 'PGRST116') {
+    return new NextResponse(JSON.stringify({ error: 'Error checking day availability' }), {
+      status: 500,
+      headers,
+    });
+  }
+
+  // If specific day exists and is explicitly disabled
+  if (dayData && dayData.is_enabled === false) {
+    return new NextResponse(JSON.stringify({ error: 'Deze dag is niet beschikbaar voor reserveringen' }), {
+      status: 400,
+      headers,
+    });
+  }
+
+  // If no specific day override, check weekly schedule
+  if (!dayData || dayData.is_enabled === null) {
+    const { data: weeklySchedule, error: weeklyScheduleError } = await supabase
+      .from('weekly_schedule')
+      .select('id, is_enabled')
+      .eq('day_of_week', dayOfWeek)
+      .single();
+
+    if (weeklyScheduleError && weeklyScheduleError.code !== 'PGRST116') {
+      return new NextResponse(JSON.stringify({ error: 'Error checking weekly schedule' }), {
+        status: 500,
+        headers,
+      });
+    }
+
+    // If weekly schedule exists and day is disabled
+    if (weeklySchedule && !weeklySchedule.is_enabled) {
+      return new NextResponse(JSON.stringify({ error: 'Deze dag is niet beschikbaar voor reserveringen' }), {
+        status: 400,
+        headers,
+      });
+    }
+  }
+
+  // Validate that the requested time slot is available for this day
+  // Get available time slots using same logic as get-available-blocks
+  let availableTimeSlots: string[] = [];
+
+  if (dayData) {
+    // Check custom time slots for this specific day
+    const { data: customSlots, error: customSlotsError } = await supabase
+      .from('day_time_slots')
+      .select('time_slot_templates(slot_time)')
+      .eq('day_id', dayData.id);
+
+    if (!customSlotsError && customSlots && customSlots.length > 0) {
+      availableTimeSlots = customSlots.map((slot: any) => slot.time_slot_templates.slot_time);
+    }
+  }
+
+  // If no custom slots and day is enabled, check weekly schedule
+  if (availableTimeSlots.length === 0 && (!dayData || dayData.is_enabled !== false)) {
+    const { data: weeklySchedule } = await supabase
+      .from('weekly_schedule')
+      .select('id, is_enabled')
+      .eq('day_of_week', dayOfWeek)
+      .single();
+
+    if (weeklySchedule && weeklySchedule.is_enabled) {
+      const { data: weeklySlots } = await supabase
+        .from('weekly_schedule_time_slots')
+        .select('time_slot_templates(slot_time)')
+        .eq('weekly_schedule_id', weeklySchedule.id);
+
+      if (weeklySlots && weeklySlots.length > 0) {
+        availableTimeSlots = weeklySlots.map((slot: any) => slot.time_slot_templates.slot_time);
+      }
+    }
+  }
+
+  // If still no slots, get all standard slots (backward compatibility)
+  if (availableTimeSlots.length === 0) {
+    const { data: standardSlots } = await supabase
+      .from('time_slot_templates')
+      .select('slot_time');
+
+    if (standardSlots) {
+      availableTimeSlots = standardSlots.map((slot: any) => slot.slot_time);
+    }
+  }
+
+  // Validate the requested time slot is in the available list
+  if (!availableTimeSlots.includes(block)) {
+    return new NextResponse(JSON.stringify({ error: 'Dit tijdslot is niet beschikbaar voor de geselecteerde datum' }), {
+      status: 400,
+      headers,
+    });
+  }
+
   // Convert the time from Amsterdam timezone to UTC before saving
   const amsterdamTime = new Date(`${date}T${block}:00`);
   const formatted = format(new Date(amsterdamTime), 'PPPp', { locale: nl });
   const reservationTime = zonedTimeToUtc(amsterdamTime, 'Europe/Amsterdam').toISOString();
-
-  const supabase = createClient();
 
   const { data: reservation, error: reservationError } = await supabase
     .from('reservations')

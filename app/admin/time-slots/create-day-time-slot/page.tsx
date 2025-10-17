@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 
 export default function CreateDayTimeSlot() {
   const [dayDate, setDayDate] = useState('');
-  const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+  const [isEnabled, setIsEnabled] = useState(true);
   interface TimeSlotTemplate {
-    id: number;
+    id: string;
     slot_time: string;
     max_reservations: number;
   }
@@ -30,7 +31,7 @@ export default function CreateDayTimeSlot() {
     fetchTimeSlotTemplates();
   }, []);
 
-  const handleSlotChange = (e: ChangeEvent<HTMLInputElement>, slotId: number) => {
+  const handleSlotChange = (e: ChangeEvent<HTMLInputElement>, slotId: string) => {
     if (e.target.checked) {
       setSelectedSlots((prev) => [...prev, slotId]);
     } else {
@@ -43,10 +44,10 @@ export default function CreateDayTimeSlot() {
 
     const supabase = createClient();
 
-    // Create or fetch the specific day
+    // Create or fetch the specific day with is_enabled status
     const { data: dayData, error: dayError } = await supabase
       .from('days')
-      .upsert({ day_date: dayDate }, { onConflict: 'day_date' })
+      .upsert({ day_date: dayDate, is_enabled: isEnabled }, { onConflict: 'day_date' })
       .select()
       .single();
 
@@ -55,23 +56,27 @@ export default function CreateDayTimeSlot() {
       return;
     }
 
-    const slotsData = selectedSlots.map((slotId) => ({
-      day_id: dayData.id,
-      time_slot_template_id: slotId,
-    }));
+    // Only insert time slots if the day is enabled and slots are selected
+    if (isEnabled && selectedSlots.length > 0) {
+      const slotsData = selectedSlots.map((slotId) => ({
+        day_id: dayData.id,
+        time_slot_template_id: slotId,
+      }));
 
-    const { error } = await supabase.from('day_time_slots').insert(slotsData);
+      const { error } = await supabase.from('day_time_slots').insert(slotsData);
 
-    if (error) {
-      console.error('Fout bij het aanmaken van dagtijdsloten:', error);
-    } else {
-      router.push('/admin/time-slots');
+      if (error) {
+        console.error('Fout bij het aanmaken van dagtijdsloten:', error);
+        return;
+      }
     }
+
+    router.push('/admin/time-slots');
   };
 
   return (
     <div className="max-w-lg mx-auto p-4 sm:p-6 lg:p-8">
-      <h1 className="text-3xl font-bold mb-8">Afwijkend Tijdslot voor Specifieke Dag</h1>
+      <h1 className="text-3xl font-bold mb-8">Afwijkende Dag Aanmaken</h1>
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700">Datum</label>
@@ -84,7 +89,24 @@ export default function CreateDayTimeSlot() {
           />
         </div>
         <div className="mb-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={isEnabled}
+              onChange={(e) => setIsEnabled(e.target.checked)}
+              className="mr-2"
+            />
+            <span className="text-sm font-medium text-gray-700">Dag ingeschakeld</span>
+          </label>
+          <p className="mt-1 text-xs text-gray-500">
+            Uitschakelen om deze specifieke dag volledig te sluiten (geen reserveringen mogelijk)
+          </p>
+        </div>
+        <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700">Tijdsloten</label>
+          <p className="mt-1 mb-2 text-xs text-gray-500">
+            Laat leeg voor alle standaard tijdsloten, of selecteer specifieke tijdsloten
+          </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {timeSlotTemplates.map((template) => (
               <div key={template.id} className="flex items-center">
@@ -93,9 +115,13 @@ export default function CreateDayTimeSlot() {
                   id={`slot-${template.id}`}
                   checked={selectedSlots.includes(template.id)}
                   onChange={(e) => handleSlotChange(e, template.id)}
+                  disabled={!isEnabled}
                   className="mr-2"
                 />
-                <label htmlFor={`slot-${template.id}`} className="text-sm text-gray-700">
+                <label 
+                  htmlFor={`slot-${template.id}`} 
+                  className={`text-sm ${!isEnabled ? 'text-gray-400' : 'text-gray-700'}`}
+                >
                   {template.slot_time} - Max: {template.max_reservations} Reserveringen
                 </label>
               </div>
@@ -106,7 +132,7 @@ export default function CreateDayTimeSlot() {
           type="submit"
           className="bg-emerald-500 text-white px-4 py-2 rounded-md hover:bg-emerald-600 transition"
         >
-          Tijdsloten Aanmaken
+          Afwijkende Dag Aanmaken
         </button>
       </form>
     </div>

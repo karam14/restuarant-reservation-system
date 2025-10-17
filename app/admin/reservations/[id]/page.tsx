@@ -18,6 +18,9 @@ export default function ReservationDetail() {
   const [guestsCount, setGuestsCount] = useState(1); // Add state for guests_count
   const [status, setStatus] = useState('pending');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
+  const [overrideValidation, setOverrideValidation] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -54,12 +57,109 @@ export default function ReservationDetail() {
   }, [id]);
 
   const handleUpdate = async () => {
+    setError('');
+    setWarning('');
     const supabase = createClient();
+
+    // Extract date and time for validation
+    const dateTime = new Date(reservationTime);
+    const date = format(dateTime, 'yyyy-MM-dd');
+    const time = format(dateTime, 'HH:mm');
+    const dayOfWeek = dateTime.getDay();
+
+    // VALIDATE DAY/TIME AVAILABILITY (unless admin overrides)
+    if (!overrideValidation) {
+      // Check if this specific day exists and is disabled
+      const { data: dayData, error: dayError } = await supabase
+        .from('days')
+        .select('id, is_enabled')
+        .eq('day_date', date)
+        .single();
+
+      if (dayError && dayError.code !== 'PGRST116') {
+        setError('Fout bij het controleren van dagbeschikbaarheid');
+        return;
+      }
+
+      // If specific day exists and is explicitly disabled
+      if (dayData && dayData.is_enabled === false) {
+        setWarning('Deze dag is uitgeschakeld. Weet u zeker dat u deze wijziging wilt opslaan?');
+        return;
+      }
+
+      // If no specific day override, check weekly schedule
+      if (!dayData || dayData.is_enabled === null) {
+        const { data: weeklySchedule, error: weeklyScheduleError } = await supabase
+          .from('weekly_schedule')
+          .select('id, is_enabled')
+          .eq('day_of_week', dayOfWeek)
+          .single();
+
+        if (weeklyScheduleError && weeklyScheduleError.code !== 'PGRST116') {
+          setError('Fout bij het controleren van weekschema');
+          return;
+        }
+
+        // If weekly schedule exists and day is disabled
+        if (weeklySchedule && !weeklySchedule.is_enabled) {
+          setWarning('Deze dag is uitgeschakeld in het weekschema. Weet u zeker dat u deze wijziging wilt opslaan?');
+          return;
+        }
+      }
+
+      // Validate that the requested time slot is available for this day
+      let availableTimeSlots: string[] = [];
+
+      if (dayData) {
+        const { data: customSlots } = await supabase
+          .from('day_time_slots')
+          .select('time_slot_templates(slot_time)')
+          .eq('day_id', dayData.id);
+
+        if (customSlots && customSlots.length > 0) {
+          availableTimeSlots = customSlots.map((slot: any) => slot.time_slot_templates.slot_time);
+        }
+      }
+
+      if (availableTimeSlots.length === 0 && (!dayData || dayData.is_enabled !== false)) {
+        const { data: weeklySchedule } = await supabase
+          .from('weekly_schedule')
+          .select('id, is_enabled')
+          .eq('day_of_week', dayOfWeek)
+          .single();
+
+        if (weeklySchedule && weeklySchedule.is_enabled) {
+          const { data: weeklySlots } = await supabase
+            .from('weekly_schedule_time_slots')
+            .select('time_slot_templates(slot_time)')
+            .eq('weekly_schedule_id', weeklySchedule.id);
+
+          if (weeklySlots && weeklySlots.length > 0) {
+            availableTimeSlots = weeklySlots.map((slot: any) => slot.time_slot_templates.slot_time);
+          }
+        }
+      }
+
+      if (availableTimeSlots.length === 0) {
+        const { data: standardSlots } = await supabase
+          .from('time_slot_templates')
+          .select('slot_time');
+
+        if (standardSlots) {
+          availableTimeSlots = standardSlots.map((slot: any) => slot.slot_time);
+        }
+      }
+
+      if (availableTimeSlots.length > 0 && !availableTimeSlots.includes(time)) {
+        setWarning(`Dit tijdslot (${time}) is niet beschikbaar voor ${date}. Beschikbare tijdsloten: ${availableTimeSlots.join(', ')}. Wilt u toch doorgaan?`);
+        return;
+      }
+    }
 
     // Convert local time back to UTC before saving
     const utcTime = zonedTimeToUtc(reservationTime, 'Europe/Amsterdam');
 
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from('reservations')
       .update({
         guest_name: guestName,
@@ -71,8 +171,9 @@ export default function ReservationDetail() {
       })
       .eq('id', id);
 
-    if (error) {
-      console.error('Fout bij het bijwerken van reservering:', error);
+    if (updateError) {
+      console.error('Fout bij het bijwerken van reservering:', updateError);
+      setError('Fout bij het opslaan: ' + updateError.message);
     } else {
       let emailStatus = '';
       if (status === 'confirmed') {
@@ -143,6 +244,15 @@ export default function ReservationDetail() {
     }
   };
 
+  const handleOverride = () => {
+    setOverrideValidation(true);
+    setWarning('');
+    // Call handleUpdate directly
+    setTimeout(() => {
+      handleUpdate();
+    }, 100);
+  };
+
   const handleBack = () => {
     router.back();
   };
@@ -158,6 +268,27 @@ export default function ReservationDetail() {
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-8">Reservering Details</h1>
+      
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-800 font-semibold">❌ Fout</p>
+          <p className="text-red-700">{error}</p>
+        </div>
+      )}
+
+      {warning && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-yellow-800 font-semibold">⚠️ Waarschuwing</p>
+          <p className="text-yellow-700 mb-3">{warning}</p>
+          <button
+            type="button"
+            onClick={handleOverride}
+            className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition"
+          >
+            Toch Doorgaan (Admin Override)
+          </button>
+        </div>
+      )}
       <div className="border border-gray-300 p-6 rounded-lg shadow-md space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Gastnaam</label>
@@ -194,7 +325,12 @@ export default function ReservationDetail() {
           <input
             type="datetime-local"
             value={reservationTime}
-            onChange={(e) => setReservationTime(e.target.value)}
+            onChange={(e) => {
+              setReservationTime(e.target.value);
+              setOverrideValidation(false);
+              setWarning('');
+              setError('');
+            }}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
           />
         </div>
