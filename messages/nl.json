@@ -1,0 +1,112 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "reservations": "Reserveringen",
+    "timeSlots": "Tijdsloten",
+    "schedule": "Weekrooster",
+    "settings": "Instellingen",
+    "switchTenant": "Wissel van restaurant",
+    "logout": "Uitloggen"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "today": "Vandaag",
+    "reservations": "reserveringen",
+    "pending": "In Afwachting",
+    "toConfirm": "te bevestigen",
+    "confirmed": "Bevestigd",
+    "totalConfirmed": "totaal bevestigd",
+    "guestsToday": "Gasten Vandaag",
+    "expectedGuests": "verwachte gasten",
+    "last30Days": "Reserveringen (30 dagen)",
+    "busiestDays": "Drukste Dagen",
+    "recentReservations": "Recente Reserveringen",
+    "noReservations": "Nog geen reserveringen."
+  },
+  "reservations": {
+    "title": "Reserveringen",
+    "searchPlaceholder": "Zoek op naam...",
+    "allStatuses": "Alle statussen",
+    "pending": "In afwachting",
+    "confirmed": "Bevestigd",
+    "cancelled": "Geannuleerd",
+    "guestName": "Gastnaam",
+    "dateTime": "Datum & Tijd",
+    "guests": "Gasten",
+    "status": "Status",
+    "actions": "Acties",
+    "createdAt": "Gemaakt op",
+    "confirm": "Bevestigen",
+    "cancel": "Annuleren",
+    "view": "Bekijk",
+    "newReservation": "Nieuwe Reservering",
+    "noResults": "Geen reserveringen gevonden.",
+    "detail": "Reservering Details",
+    "guestEmail": "E-mailadres",
+    "guestPhone": "Telefoonnummer",
+    "guestCount": "Aantal Gasten",
+    "back": "Terug",
+    "createTitle": "Nieuwe Reservering Aanmaken",
+    "date": "Datum",
+    "time": "Tijd",
+    "save": "Opslaan"
+  },
+  "timeSlots": {
+    "title": "Tijdsloten",
+    "time": "Tijd",
+    "maxReservations": "Max Reserveringen",
+    "edit": "Bewerken",
+    "delete": "Verwijderen",
+    "newSlot": "Nieuw Tijdslot",
+    "createTitle": "Nieuw Tijdslot Aanmaken",
+    "editTitle": "Tijdslot Bewerken",
+    "noSlots": "Nog geen tijdsloten."
+  },
+  "schedule": {
+    "title": "Weekrooster",
+    "enabled": "Ingeschakeld",
+    "disabled": "Uitgeschakeld",
+    "noSlots": "Geen tijdsloten toegewezen",
+    "days": {
+      "monday": "Maandag",
+      "tuesday": "Dinsdag",
+      "wednesday": "Woensdag",
+      "thursday": "Donderdag",
+      "friday": "Vrijdag",
+      "saturday": "Zaterdag",
+      "sunday": "Zondag"
+    }
+  },
+  "settings": {
+    "title": "Instellingen",
+    "restaurantName": "Restaurant Naam",
+    "email": "E-mailadres",
+    "domain": "Domein",
+    "save": "Opslaan",
+    "saved": "Instellingen opgeslagen",
+    "error": "Fout bij het opslaan"
+  },
+  "auth": {
+    "login": "Inloggen",
+    "loginSubtitle": "Log in om uw restaurant te beheren",
+    "email": "E-mailadres",
+    "password": "Wachtwoord",
+    "loggingIn": "Bezig met inloggen...",
+    "loginError": "Fout bij het inloggen",
+    "loginSuccess": "Succesvol ingelogd!"
+  },
+  "tenant": {
+    "selectTitle": "Kies een restaurant",
+    "selectSubtitle": "Selecteer het restaurant dat u wilt beheren"
+  },
+  "common": {
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "back": "Terug",
+    "loading": "Laden...",
+    "error": "Er is een fout opgetreden",
+    "success": "Succesvol",
+    "confirm": "Bevestigen",
+    "delete": "Verwijderen"
+  }
+}

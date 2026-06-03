@@ -1,17 +1,5 @@
-'use client';
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { redirect } from "next/navigation";
 
-
-export default async function Index() {
-  const router = useRouter();
-  useEffect(() => {
-
-    router.push("/admin");
-  }, []);
-  return (
-    <>
-
-    </>
-  );
+export default function Home() {
+  redirect("/select-tenant");
 }

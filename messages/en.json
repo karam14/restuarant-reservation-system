@@ -1,0 +1,112 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "reservations": "Reservations",
+    "timeSlots": "Time Slots",
+    "schedule": "Weekly Schedule",
+    "settings": "Settings",
+    "switchTenant": "Switch restaurant",
+    "logout": "Log out"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "today": "Today",
+    "reservations": "reservations",
+    "pending": "Pending",
+    "toConfirm": "to confirm",
+    "confirmed": "Confirmed",
+    "totalConfirmed": "total confirmed",
+    "guestsToday": "Guests Today",
+    "expectedGuests": "expected guests",
+    "last30Days": "Reservations (30 days)",
+    "busiestDays": "Busiest Days",
+    "recentReservations": "Recent Reservations",
+    "noReservations": "No reservations yet."
+  },
+  "reservations": {
+    "title": "Reservations",
+    "searchPlaceholder": "Search by name...",
+    "allStatuses": "All statuses",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "cancelled": "Cancelled",
+    "guestName": "Guest Name",
+    "dateTime": "Date & Time",
+    "guests": "Guests",
+    "status": "Status",
+    "actions": "Actions",
+    "createdAt": "Created at",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "view": "View",
+    "newReservation": "New Reservation",
+    "noResults": "No reservations found.",
+    "detail": "Reservation Details",
+    "guestEmail": "Email",
+    "guestPhone": "Phone",
+    "guestCount": "Guest Count",
+    "back": "Back",
+    "createTitle": "Create New Reservation",
+    "date": "Date",
+    "time": "Time",
+    "save": "Save"
+  },
+  "timeSlots": {
+    "title": "Time Slots",
+    "time": "Time",
+    "maxReservations": "Max Reservations",
+    "edit": "Edit",
+    "delete": "Delete",
+    "newSlot": "New Time Slot",
+    "createTitle": "Create Time Slot",
+    "editTitle": "Edit Time Slot",
+    "noSlots": "No time slots yet."
+  },
+  "schedule": {
+    "title": "Weekly Schedule",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "noSlots": "No time slots assigned",
+    "days": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "restaurantName": "Restaurant Name",
+    "email": "Email",
+    "domain": "Domain",
+    "save": "Save",
+    "saved": "Settings saved",
+    "error": "Error saving settings"
+  },
+  "auth": {
+    "login": "Log in",
+    "loginSubtitle": "Log in to manage your restaurant",
+    "email": "Email",
+    "password": "Password",
+    "loggingIn": "Logging in...",
+    "loginError": "Login error",
+    "loginSuccess": "Successfully logged in!"
+  },
+  "tenant": {
+    "selectTitle": "Choose a restaurant",
+    "selectSubtitle": "Select the restaurant you want to manage"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "confirm": "Confirm",
+    "delete": "Delete"
+  }
+}

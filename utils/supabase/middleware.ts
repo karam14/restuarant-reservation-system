@@ -3,7 +3,6 @@ import { type NextRequest, NextResponse } from "next/server";
 
 export const updateSession = async (request: NextRequest) => {
   try {
-    // Create a response object that we can modify
     let response = NextResponse.next();
 
     const supabase = createServerClient(
@@ -23,17 +22,39 @@ export const updateSession = async (request: NextRequest) => {
       }
     );
 
-    // This will refresh the session if it's expired
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
-    // Redirect to the login page if user is not authenticated and trying to access protected routes
-    if (request.nextUrl.pathname.startsWith("/admin") && error) {
+    const pathname = request.nextUrl.pathname;
+
+    // Public routes that don't require auth
+    const isPublicRoute =
+      pathname === "/login" ||
+      pathname.startsWith("/api/");
+
+    if (isPublicRoute) {
+      // If logged in and hitting /login, redirect to select-tenant
+      if (pathname === "/login" && user) {
+        return NextResponse.redirect(new URL("/select-tenant", request.url));
+      }
+      return response;
+    }
+
+    // Everything else requires auth
+    if (error || !user) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    // Redirect to the admin dashboard if the user is authenticated and tries to access the root path
-    if (request.nextUrl.pathname === "/" && user) {
-      return NextResponse.redirect(new URL("/admin", request.url));
+    // Root redirect
+    if (pathname === "/") {
+      return NextResponse.redirect(new URL("/select-tenant", request.url));
+    }
+
+    // Legacy /admin routes redirect to select-tenant
+    if (pathname.startsWith("/admin")) {
+      return NextResponse.redirect(new URL("/select-tenant", request.url));
     }
 
     return response;
