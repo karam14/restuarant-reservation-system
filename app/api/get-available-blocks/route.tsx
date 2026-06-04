@@ -70,16 +70,16 @@ export async function GET(req: NextRequest) {
     if (customSlotsError) {
       return new NextResponse(JSON.stringify({ error: 'Error fetching custom time slots' }), {
         status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-        },
+        headers: CORS_HEADERS,
       });
     }
 
-    timeSlots = customSlots.map((slot: any) => ({
-      id: slot.id,
-      label: slot.time_slot_templates.slot_time,
-    }));
+    timeSlots = customSlots
+      .map((slot: any) => ({
+        id: slot.id,
+        label: slot.time_slot_templates.slot_time,
+      }))
+      .sort((a: any, b: any) => a.label.localeCompare(b.label));
   }
 
   // If no custom time slots, check weekly schedule
@@ -117,17 +117,17 @@ export async function GET(req: NextRequest) {
       if (weeklySlotsError) {
         return new NextResponse(JSON.stringify({ error: 'Error fetching weekly time slots' }), {
           status: 500,
-          headers: {
-            'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-          },
+          headers: CORS_HEADERS,
         });
       }
 
       if (weeklySlots && weeklySlots.length > 0) {
-        timeSlots = weeklySlots.map((slot: any) => ({
-          id: slot.time_slot_templates.id,
-          label: slot.time_slot_templates.slot_time,
-        }));
+        timeSlots = weeklySlots
+          .map((slot: any) => ({
+            id: slot.time_slot_templates.id,
+            label: slot.time_slot_templates.slot_time,
+          }))
+          .sort((a: any, b: any) => a.label.localeCompare(b.label));
       }
     }
   }
