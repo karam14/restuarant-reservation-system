@@ -642,7 +642,7 @@ export default function ReservationsPage() {
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); requestAnimationFrame(() => { document.body.style.pointerEvents = ""; }); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("reservations.deleteConfirmTitle")}</DialogTitle>
@@ -664,7 +664,7 @@ export default function ReservationsPage() {
       </Dialog>
 
       {/* Bulk Action Confirmation Dialog */}
-      <Dialog open={!!bulkAction} onOpenChange={(open) => { if (!open) setBulkAction(null); }}>
+      <Dialog open={!!bulkAction} onOpenChange={(open) => { if (!open) { setBulkAction(null); requestAnimationFrame(() => { document.body.style.pointerEvents = ""; }); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
