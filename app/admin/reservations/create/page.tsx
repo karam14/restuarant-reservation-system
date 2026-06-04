@@ -24,6 +24,18 @@ export default function CreateReservation() {
 
     const supabase = createClient();
 
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('domain', 'athenesolijf.nl')
+      .single();
+
+    if (!tenant) {
+      setError('Tenant niet gevonden');
+      setLoading(false);
+      return;
+    }
+
     // Extract date and time for validation
     const dateTime = new Date(reservationTime);
     const date = format(dateTime, 'yyyy-MM-dd');
@@ -37,6 +49,7 @@ export default function CreateReservation() {
         .from('days')
         .select('id, is_enabled')
         .eq('day_date', date)
+        .eq('tenant_id', tenant.id)
         .single();
 
       if (dayError && dayError.code !== 'PGRST116') {
@@ -58,6 +71,7 @@ export default function CreateReservation() {
           .from('weekly_schedule')
           .select('id, is_enabled')
           .eq('day_of_week', dayOfWeek)
+          .eq('tenant_id', tenant.id)
           .single();
 
         if (weeklyScheduleError && weeklyScheduleError.code !== 'PGRST116') {
@@ -95,6 +109,7 @@ export default function CreateReservation() {
           .from('weekly_schedule')
           .select('id, is_enabled')
           .eq('day_of_week', dayOfWeek)
+          .eq('tenant_id', tenant.id)
           .single();
 
         if (weeklySchedule && weeklySchedule.is_enabled) {
@@ -143,6 +158,7 @@ export default function CreateReservation() {
         guest_phone: guestPhone,
         reservation_time: utcReservationTime,
         status: 'pending',
+        tenant_id: tenant.id,
       },
     ]);
 

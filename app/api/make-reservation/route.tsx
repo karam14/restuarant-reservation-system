@@ -7,9 +7,21 @@ import ReservationEmail from '@/emails/ReservationEmail';
 import { nl } from 'date-fns/locale';
 import { format } from 'date-fns';
 
+const LEGACY_DOMAIN = 'athenesolijf.nl';
+
+async function resolveLegacyTenant() {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('tenants')
+    .select('*')
+    .eq('domain', LEGACY_DOMAIN)
+    .single();
+  return data;
+}
+
 export async function OPTIONS(req: NextRequest) {
   const headers = new Headers();
-  headers.set('Access-Control-Allow-Origin', 'https://athenesolijf.nl');
+  headers.set('Access-Control-Allow-Origin', `https://${LEGACY_DOMAIN}`);
   headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   headers.set('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -18,9 +30,17 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const headers = new Headers();
-  headers.set('Access-Control-Allow-Origin', 'https://athenesolijf.nl');
+  headers.set('Access-Control-Allow-Origin', `https://${LEGACY_DOMAIN}`);
   headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   headers.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  const tenant = await resolveLegacyTenant();
+  if (!tenant) {
+    return new NextResponse(JSON.stringify({ error: 'Tenant not found' }), {
+      status: 500,
+      headers,
+    });
+  }
 
   const { date, block, name, phone, peopleCount, email, 'g-recaptcha-response': recaptchaToken } = await req.json();
 
@@ -42,6 +62,7 @@ export async function POST(req: NextRequest) {
     .from('days')
     .select('id, is_enabled')
     .eq('day_date', date)
+    .eq('tenant_id', tenant.id)
     .single();
 
   if (dayError && dayError.code !== 'PGRST116') {
@@ -65,6 +86,7 @@ export async function POST(req: NextRequest) {
       .from('weekly_schedule')
       .select('id, is_enabled')
       .eq('day_of_week', dayOfWeek)
+      .eq('tenant_id', tenant.id)
       .single();
 
     if (weeklyScheduleError && weeklyScheduleError.code !== 'PGRST116') {
@@ -105,6 +127,7 @@ export async function POST(req: NextRequest) {
       .from('weekly_schedule')
       .select('id, is_enabled')
       .eq('day_of_week', dayOfWeek)
+      .eq('tenant_id', tenant.id)
       .single();
 
     if (weeklySchedule && weeklySchedule.is_enabled) {
@@ -158,6 +181,7 @@ export async function POST(req: NextRequest) {
         reservation_time: reservationTime,
         guests_count: peopleCount,
         status: 'pending',
+        tenant_id: tenant.id,
       },
     ])
     .single();
@@ -183,7 +207,7 @@ export async function POST(req: NextRequest) {
         guestName={name}
         reservationTime={formatted}
         status="in afwachting"
-        emailAddress="info@athenesolijf.nl"
+        emailAddress={tenant.email || `info@${LEGACY_DOMAIN}`}
       />
     );
 
@@ -200,7 +224,7 @@ export async function POST(req: NextRequest) {
     const guestMailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Uw reservering bij Athenes Olijf is ontvangen',
+      subject: `Uw reservering bij ${tenant.name} is ontvangen`,
       html: emailHtml,
     };
 
@@ -213,7 +237,7 @@ export async function POST(req: NextRequest) {
     // Send notification email to the restaurant
     const restaurantMailOptions = {
       from: process.env.EMAIL_USER,
-      to: 'info@athenesolijf.nl',
+      to: tenant.email || `info@${LEGACY_DOMAIN}`,
       subject: 'Nieuwe reservering ontvangen',
       text: `Beste,
 
