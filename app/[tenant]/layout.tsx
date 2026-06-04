@@ -6,6 +6,7 @@ import { TenantProvider } from "@/lib/tenant-context";
 import { useParams } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export default function TenantLayout({
@@ -18,6 +19,7 @@ export default function TenantLayout({
 
   return (
     <TenantProvider tenantSlug={tenantSlug}>
+      <TooltipProvider delayDuration={300}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
@@ -32,6 +34,7 @@ export default function TenantLayout({
           </main>
         </SidebarInset>
       </SidebarProvider>
+      </TooltipProvider>
       <Toaster />
     </TenantProvider>
   );

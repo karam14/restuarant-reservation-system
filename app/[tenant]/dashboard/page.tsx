@@ -31,8 +31,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip as UITooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
+import { ActionButton } from "@/components/action-button";
 
 interface DashboardStats {
   todayTotal: number;
@@ -345,32 +347,31 @@ export default function DashboardPage() {
                           <div className="flex justify-end items-center gap-1">
                             {r.status === "pending" && (
                               <>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 text-accent hover:text-accent hover:bg-accent/10"
+                                <ActionButton
+                                  tooltip={t("reservations.confirm")}
                                   onClick={() => updateStatus(r, "confirmed")}
-                                  title={t("reservations.confirm")}
-                                >
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  className="text-accent hover:text-accent hover:bg-accent/10"
+                                  icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                                />
+                                <ActionButton
+                                  tooltip={t("reservations.cancel")}
                                   onClick={() => updateStatus(r, "cancelled")}
-                                  title={t("reservations.cancel")}
-                                >
-                                  <XCircle className="h-3.5 w-3.5" />
-                                </Button>
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  icon={<XCircle className="h-3.5 w-3.5" />}
+                                />
                               </>
                             )}
                             <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                  <MoreHorizontal className="h-3.5 w-3.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
+                              <UITooltip>
+                                <TooltipTrigger asChild>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                      <MoreHorizontal className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent><p>{t("reservations.moreActions")}</p></TooltipContent>
+                              </UITooltip>
                               <DropdownMenuContent align="end">
                                 {r.status !== "pending" && r.status !== "confirmed" && (
                                   <DropdownMenuItem onClick={() => updateStatus(r, "confirmed")}>
