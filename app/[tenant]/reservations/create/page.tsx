@@ -122,7 +122,7 @@ export default function CreateReservationPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="reservation_date">{t("reservations.date")}</Label>
                 <Input
@@ -157,13 +157,13 @@ export default function CreateReservationPage() {
               />
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={loading}>
+            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => router.push(`/${tenantSlug}/reservations`)}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                 {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {loading ? t("reservations.creating") : t("reservations.create")}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => router.push(`/${tenantSlug}/reservations`)}>
-                {t("common.cancel")}
               </Button>
             </div>
           </form>

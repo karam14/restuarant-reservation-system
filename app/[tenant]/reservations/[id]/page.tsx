@@ -281,8 +281,8 @@ export default function ReservationDetailPage() {
   return (
     <motion.div className="space-y-6 max-w-2xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Button variant="ghost" size="sm" asChild>
             <Link href={`/${tenantSlug}/reservations`}>
               <ArrowLeft className="h-4 w-4" />
@@ -296,7 +296,7 @@ export default function ReservationDetailPage() {
           </motion.div>
         </div>
         {!editing && (
-          <Button variant="outline" size="sm" onClick={startEditing}>
+          <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={startEditing}>
             <Pencil className="h-4 w-4 mr-2" /> {t("reservations.edit")}
           </Button>
         )}
@@ -310,7 +310,7 @@ export default function ReservationDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {editing ? (
-              <motion.div className="grid grid-cols-2 gap-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+              <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
                 <div className="space-y-2">
                   <Label>{t("reservations.guestName")}</Label>
                   <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
@@ -329,7 +329,7 @@ export default function ReservationDetailPage() {
                 </div>
               </motion.div>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">{t("reservations.guestName")}</p>
                   <p className="font-medium">{reservation.guest_name}</p>
@@ -352,7 +352,7 @@ export default function ReservationDetailPage() {
             <Separator />
 
             {editing ? (
-              <motion.div className="grid grid-cols-2 gap-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+              <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
                 <div className="space-y-2">
                   <Label>{t("reservations.dateTime")}</Label>
                   <Input type="datetime-local" value={editTime} onChange={(e) => setEditTime(e.target.value)} />
@@ -365,7 +365,7 @@ export default function ReservationDetailPage() {
                 </div>
               </motion.div>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">{t("reservations.dateTime")}</p>
                   <p className="font-medium">

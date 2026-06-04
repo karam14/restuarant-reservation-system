@@ -255,12 +255,12 @@ export default function UsersPage() {
       transition={{ duration: 0.3 }}
     >
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             Gebruikersbeheer
           </CardTitle>
-          <Button onClick={() => setShowAddDialog(true)}>
+          <Button className="w-full sm:w-auto" onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Gebruiker toevoegen
           </Button>
@@ -282,7 +282,7 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Rol</TableHead>
-                  <TableHead>Laatst ingelogd</TableHead>
+                  <TableHead className="hidden md:table-cell">Laatst ingelogd</TableHead>
                   <TableHead className="text-right">Acties</TableHead>
                 </TableRow>
               </TableHeader>
@@ -308,7 +308,7 @@ export default function UsersPage() {
                           {user.role}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="hidden md:table-cell text-muted-foreground">
                         {user.last_sign_in_at
                           ? new Date(user.last_sign_in_at).toLocaleDateString(
                               "nl-NL",

@@ -389,12 +389,12 @@ export default function ReservationsPage() {
   if (loading && reservations.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-32 mt-2" /></div>
-          <Skeleton className="h-10 w-44" />
+          <Skeleton className="h-10 w-full sm:w-44" />
         </div>
-        <Skeleton className="h-10 w-full max-w-md" />
-        <div className="flex gap-3"><Skeleton className="h-10 w-64" /><Skeleton className="h-10 w-44" /></div>
+        <Skeleton className="h-10 w-full sm:max-w-md" />
+        <div className="flex flex-col gap-3 sm:flex-row"><Skeleton className="h-10 w-full sm:w-64" /><Skeleton className="h-10 w-full sm:w-44" /></div>
         <Skeleton className="h-[400px] w-full rounded-lg" />
       </div>
     );
@@ -403,7 +403,7 @@ export default function ReservationsPage() {
   return (
     <motion.div className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("reservations.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -413,7 +413,7 @@ export default function ReservationsPage() {
             })}
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href={`/${tenantSlug}/reservations/create`}>
             <Plus className="h-4 w-4 mr-2" />
             {t("reservations.newReservation")}
@@ -422,24 +422,26 @@ export default function ReservationsPage() {
       </div>
 
       {/* Status Tabs */}
-      <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setSelectedIds(new Set()); }}>
-        <TabsList>
-          <TabsTrigger value="all">
-            {t("reservations.all")}
-            <Badge variant="secondary" className="ml-2 text-xs">{statusCounts.all}</Badge>
-          </TabsTrigger>
-          {STATUS_KEYS.map((s) => (
-            <TabsTrigger key={s} value={s}>
-              {t(`reservations.${s}`)}
-              <Badge variant="secondary" className="ml-2 text-xs">{statusCounts[s]}</Badge>
+      <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setSelectedIds(new Set()); }}>
+          <TabsList className="w-max">
+            <TabsTrigger value="all">
+              {t("reservations.all")}
+              <Badge variant="secondary" className="ml-1.5 text-xs">{statusCounts.all}</Badge>
             </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+            {STATUS_KEYS.map((s) => (
+              <TabsTrigger key={s} value={s}>
+                {t(`reservations.${s}`)}
+                <Badge variant="secondary" className="ml-1.5 text-xs">{statusCounts[s]}</Badge>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
 
       {/* Filters */}
-      <motion.div className="flex flex-wrap items-center gap-3" {...fadeIn}>
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <motion.div className="flex flex-col gap-3 sm:flex-row sm:items-center" {...fadeIn}>
+        <div className="relative flex-1 min-w-0 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t("reservations.searchPlaceholder")}
@@ -460,7 +462,7 @@ export default function ReservationsPage() {
             clearFilter: t("dateRange.clearFilter"),
           }}
           placeholder={t("reservations.allDates")}
-          triggerClassName="w-auto min-w-[200px]"
+          triggerClassName="w-full sm:w-auto"
           secondaryOptions={[
             { label: t("reservations.reservationDate"), value: "reservation", active: dateFilterTarget === "reservation", onClick: () => setDateFilterTarget("reservation") },
             { label: t("reservations.creationDate"), value: "creation", active: dateFilterTarget === "creation", onClick: () => setDateFilterTarget("creation") },
@@ -473,9 +475,9 @@ export default function ReservationsPage() {
         {selectedIds.size > 0 && (
           <motion.div {...fadeIn}>
             <Card>
-              <CardContent className="py-3 flex items-center gap-3 flex-wrap">
+              <CardContent className="py-3 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-3 sm:flex-wrap">
                 <span className="text-sm font-medium">{selectedIds.size} {t("reservations.selected")}</span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" className="text-accent border-accent/30" onClick={() => setBulkAction("confirmed")}>
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> {t("reservations.confirm")}
                   </Button>
@@ -489,7 +491,7 @@ export default function ReservationsPage() {
                     <Trash2 className="h-3.5 w-3.5 mr-1" /> {t("reservations.delete")}
                   </Button>
                 </div>
-                <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelectedIds(new Set())}>
+                <Button size="sm" variant="ghost" className="w-full sm:w-auto sm:ml-auto" onClick={() => setSelectedIds(new Set())}>
                   {t("reservations.deselect")}
                 </Button>
               </CardContent>
@@ -500,7 +502,7 @@ export default function ReservationsPage() {
 
       {/* Table */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -509,16 +511,16 @@ export default function ReservationsPage() {
                 </TableHead>
                 <TableHead><SortHeader field="guest_name">{t("reservations.guest")}</SortHeader></TableHead>
                 <TableHead><SortHeader field="reservation_time">{t("reservations.dateTime")}</SortHeader></TableHead>
-                <TableHead><SortHeader field="guests_count"><Users className="h-3.5 w-3.5 mr-1" />{t("reservations.guests")}</SortHeader></TableHead>
+                <TableHead className="hidden sm:table-cell"><SortHeader field="guests_count"><Users className="h-3.5 w-3.5 mr-1" />{t("reservations.guests")}</SortHeader></TableHead>
                 <TableHead>{t("reservations.status")}</TableHead>
-                <TableHead><SortHeader field="created_at"><Clock className="h-3.5 w-3.5 mr-1" />{t("reservations.createdAt")}</SortHeader></TableHead>
+                <TableHead className="hidden lg:table-cell"><SortHeader field="created_at"><Clock className="h-3.5 w-3.5 mr-1" />{t("reservations.createdAt")}</SortHeader></TableHead>
                 <TableHead className="text-right">{t("reservations.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reservations.length === 0 && !loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                  <TableCell colSpan={99} className="text-center text-muted-foreground py-12">
                     {t("reservations.noResults")}
                   </TableCell>
                 </TableRow>
@@ -557,13 +559,13 @@ export default function ReservationsPage() {
                           <p className="text-xs text-muted-foreground">{format(new Date(reservation.reservation_time), "HH:mm")}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{reservation.guests_count}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{reservation.guests_count}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getStatusColor(reservation.status)}>
                           {t(`reservations.${reservation.status}`)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         <p className="text-sm text-muted-foreground">{format(new Date(reservation.created_at), "d MMM yyyy", { locale: dateFnsLocale })}</p>
                         <p className="text-xs text-muted-foreground">{format(new Date(reservation.created_at), "HH:mm")}</p>
                       </TableCell>

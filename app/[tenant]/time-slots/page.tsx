@@ -113,12 +113,12 @@ export default function TimeSlotsPage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("timeSlots.title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">{t("timeSlots.subtitle")}</p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href={`/${tenantSlug}/time-slots/create`}>
             <Plus className="mr-2 h-4 w-4" />
             {t("timeSlots.newSlot")}

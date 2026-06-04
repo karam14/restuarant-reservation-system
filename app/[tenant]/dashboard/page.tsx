@@ -316,8 +316,8 @@ export default function DashboardPage() {
                   <thead>
                     <tr className="border-b text-muted-foreground">
                       <th className="text-left py-2 font-medium">{t("dashboard.guest")}</th>
-                      <th className="text-left py-2 font-medium">{t("dashboard.dateTime")}</th>
-                      <th className="text-left py-2 font-medium">{t("dashboard.guests")}</th>
+                      <th className="text-left py-2 font-medium hidden sm:table-cell">{t("dashboard.dateTime")}</th>
+                      <th className="text-left py-2 font-medium hidden md:table-cell">{t("dashboard.guests")}</th>
                       <th className="text-left py-2 font-medium">{t("dashboard.status")}</th>
                       <th className="text-right py-2 font-medium">{t("reservations.actions")}</th>
                     </tr>
@@ -334,11 +334,14 @@ export default function DashboardPage() {
                       >
                         <td className="py-2">
                           <span className="font-medium">{r.guest_name}</span>
+                          <p className="text-xs text-muted-foreground sm:hidden">
+                            {format(new Date(r.reservation_time), "d MMM HH:mm", { locale: dateFnsLocale })}
+                          </p>
                         </td>
-                        <td className="py-2 text-muted-foreground">
+                        <td className="py-2 text-muted-foreground hidden sm:table-cell">
                           {format(new Date(r.reservation_time), "d MMM HH:mm", { locale: dateFnsLocale })}
                         </td>
-                        <td className="py-2 text-muted-foreground">{r.guests_count}</td>
+                        <td className="py-2 text-muted-foreground hidden md:table-cell">{r.guests_count}</td>
                         <td className="py-2">
                           <Badge variant="outline" className={getStatusColor(r.status)}>
                             {t(`reservations.${r.status}`)}
