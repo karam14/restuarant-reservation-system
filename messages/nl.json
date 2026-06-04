@@ -203,6 +203,18 @@
     "selectTitle": "Kies een restaurant",
     "selectSubtitle": "Selecteer het restaurant dat u wilt beheren"
   },
+  "dateRange": {
+    "filterByHeader": "Filteren op",
+    "quickSelectHeader": "Snelkeuze",
+    "clearFilter": "Filter wissen",
+    "today": "Vandaag",
+    "yesterday": "Gisteren",
+    "thisWeek": "Deze week",
+    "last7Days": "Afgelopen 7 dagen",
+    "thisMonth": "Deze maand",
+    "last30Days": "Afgelopen 30 dagen",
+    "last3Months": "Afgelopen 3 maanden"
+  },
   "common": {
     "save": "Opslaan",
     "saving": "Bezig...",

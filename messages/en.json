@@ -203,6 +203,18 @@
     "selectTitle": "Choose a restaurant",
     "selectSubtitle": "Select the restaurant you want to manage"
   },
+  "dateRange": {
+    "filterByHeader": "Filter by",
+    "quickSelectHeader": "Quick select",
+    "clearFilter": "Clear filter",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This week",
+    "last7Days": "Last 7 days",
+    "thisMonth": "This month",
+    "last30Days": "Last 30 days",
+    "last3Months": "Last 3 months"
+  },
   "common": {
     "save": "Save",
     "saving": "Processing...",

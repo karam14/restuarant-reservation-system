@@ -5,19 +5,14 @@ import { createClient } from "@/utils/supabase/client";
 import { useTenant } from "@/lib/tenant-context";
 import { useTranslations } from "@/lib/use-translations";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   format,
   parseISO,
-  startOfDay,
-  endOfDay,
   isWithinInterval,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
 } from "date-fns";
 import { nl, enUS } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -31,13 +26,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,6 +45,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateRangePicker, getDefaultPresets } from "@/components/date-range-picker";
 import {
   MoreHorizontal,
   CheckCircle2,
@@ -66,7 +55,6 @@ import {
   Eye,
   Plus,
   Search,
-  CalendarIcon,
   Users,
   ArrowUpDown,
   ChevronUp,
@@ -88,7 +76,6 @@ interface Reservation {
 
 type SortField = "reservation_time" | "guest_name" | "guests_count" | "created_at";
 type SortDirection = "asc" | "desc";
-type DatePreset = "all" | "today" | "week" | "month" | "custom";
 type DateFilterTarget = "reservation" | "creation";
 
 const STATUS_KEYS = ["pending", "confirmed", "cancelled"] as const;
@@ -134,15 +121,14 @@ export default function ReservationsPage() {
   const { t, locale } = useTranslations();
   const dateFnsLocale = locale === "nl" ? nl : enUS;
   const params = useParams();
+  const router = useRouter();
   const tenantSlug = params.tenant as string;
 
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [dateFilterTarget, setDateFilterTarget] = useState<DateFilterTarget>("reservation");
   const [sortField, setSortField] = useState<SortField>("reservation_time");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -150,6 +136,8 @@ export default function ReservationsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);
   const [bulkAction, setBulkAction] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  const datePresets = useMemo(() => getDefaultPresets(t), [t]);
 
   useEffect(() => {
     if (!tenant) return;
@@ -273,28 +261,7 @@ export default function ReservationsPage() {
     setActionLoading(false);
   };
 
-  const getDateRange = (): { from: Date; to: Date } | null => {
-    const now = new Date();
-    switch (datePreset) {
-      case "today":
-        return { from: startOfDay(now), to: endOfDay(now) };
-      case "week":
-        return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
-      case "month":
-        return { from: startOfMonth(now), to: endOfMonth(now) };
-      case "custom":
-        if (dateFrom && dateTo) return { from: startOfDay(new Date(dateFrom)), to: endOfDay(new Date(dateTo)) };
-        if (dateFrom) return { from: startOfDay(new Date(dateFrom)), to: endOfDay(new Date("2099-12-31")) };
-        if (dateTo) return { from: startOfDay(new Date("2000-01-01")), to: endOfDay(new Date(dateTo)) };
-        return null;
-      default:
-        return null;
-    }
-  };
-
   const filteredReservations = useMemo(() => {
-    const dateRange = getDateRange();
-
     return reservations
       .filter((r) => {
         if (statusFilter !== "all" && r.status !== statusFilter) return false;
@@ -307,10 +274,11 @@ export default function ReservationsPage() {
           )
             return false;
         }
-        if (dateRange) {
+        if (dateRange?.from) {
           const dateField = dateFilterTarget === "creation" ? r.created_at : r.reservation_time;
           const d = parseISO(dateField);
-          if (!isWithinInterval(d, { start: dateRange.from, end: dateRange.to })) return false;
+          const interval = { start: dateRange.from, end: dateRange.to || dateRange.from };
+          if (!isWithinInterval(d, interval)) return false;
         }
         return true;
       })
@@ -331,7 +299,7 @@ export default function ReservationsPage() {
         }
         return sortDirection === "asc" ? cmp : -cmp;
       });
-  }, [reservations, statusFilter, searchQuery, datePreset, dateFrom, dateTo, dateFilterTarget, sortField, sortDirection]);
+  }, [reservations, statusFilter, searchQuery, dateRange, dateFilterTarget, sortField, sortDirection]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: reservations.length, pending: 0, confirmed: 0, cancelled: 0 };
@@ -450,7 +418,7 @@ export default function ReservationsPage() {
       </Tabs>
 
       {/* Filters */}
-      <motion.div className="flex flex-wrap items-end gap-3" {...fadeIn}>
+      <motion.div className="flex flex-wrap items-center gap-3" {...fadeIn}>
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -461,65 +429,33 @@ export default function ReservationsPage() {
           />
         </div>
 
-        <Select
-          value={dateFilterTarget}
-          onValueChange={(v) => setDateFilterTarget(v as DateFilterTarget)}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="reservation">
-              <span className="flex items-center gap-2">
-                <CalendarIcon className="h-3.5 w-3.5" /> {t("reservations.reservationDate")}
-              </span>
-            </SelectItem>
-            <SelectItem value="creation">
-              <span className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5" /> {t("reservations.creationDate")}
-              </span>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={datePreset}
-          onValueChange={(v) => {
-            setDatePreset(v as DatePreset);
-            if (v !== "custom") {
-              setDateFrom("");
-              setDateTo("");
-            }
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          presets={datePresets}
+          dateFnsLocale={dateFnsLocale}
+          labels={{
+            filterByHeader: t("dateRange.filterByHeader"),
+            quickSelectHeader: t("dateRange.quickSelectHeader"),
+            clearFilter: t("dateRange.clearFilter"),
           }}
-        >
-          <SelectTrigger className="w-44">
-            <CalendarIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("reservations.allDates")}</SelectItem>
-            <SelectItem value="today">{t("reservations.today")}</SelectItem>
-            <SelectItem value="week">{t("reservations.thisWeek")}</SelectItem>
-            <SelectItem value="month">{t("reservations.thisMonth")}</SelectItem>
-            <SelectItem value="custom">{t("reservations.customRange")}</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <AnimatePresence>
-          {datePreset === "custom" && (
-            <motion.div
-              className="flex items-center gap-2"
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-40" />
-              <span className="text-muted-foreground text-sm whitespace-nowrap">{t("reservations.through")}</span>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-40" />
-            </motion.div>
-          )}
-        </AnimatePresence>
+          placeholder={t("reservations.allDates")}
+          triggerClassName="w-auto min-w-[200px]"
+          secondaryOptions={[
+            {
+              label: t("reservations.reservationDate"),
+              value: "reservation",
+              active: dateFilterTarget === "reservation",
+              onClick: () => setDateFilterTarget("reservation"),
+            },
+            {
+              label: t("reservations.creationDate"),
+              value: "creation",
+              active: dateFilterTarget === "creation",
+              onClick: () => setDateFilterTarget("creation"),
+            },
+          ]}
+        />
       </motion.div>
 
       {/* Bulk Actions */}
@@ -582,7 +518,7 @@ export default function ReservationsPage() {
                     {t("reservations.createdAt")}
                   </SortHeader>
                 </TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="text-right">{t("reservations.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -602,7 +538,11 @@ export default function ReservationsPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.2, delay: i < 20 ? i * 0.02 : 0 }}
-                      className={`border-b transition-colors hover:bg-muted/50 ${selectedIds.has(reservation.id) ? "bg-muted/50" : ""}`}
+                      className={`border-b transition-colors hover:bg-muted/50 cursor-pointer ${selectedIds.has(reservation.id) ? "bg-muted/50" : ""}`}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest("button, [role=checkbox], a, [data-radix-collection-item]")) return;
+                        router.push(`/${tenantSlug}/reservations/${reservation.id}`);
+                      }}
                     >
                       <TableCell>
                         <Checkbox
@@ -613,12 +553,7 @@ export default function ReservationsPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <Link
-                            href={`/${tenantSlug}/reservations/${reservation.id}`}
-                            className="font-medium hover:underline"
-                          >
-                            {reservation.guest_name}
-                          </Link>
+                          <span className="font-medium">{reservation.guest_name}</span>
                           <p className="text-xs text-muted-foreground">{reservation.guest_email}</p>
                         </div>
                       </TableCell>
@@ -646,44 +581,64 @@ export default function ReservationsPage() {
                           {format(new Date(reservation.created_at), "HH:mm")}
                         </p>
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/${tenantSlug}/reservations/${reservation.id}`}>
-                                <Eye className="h-4 w-4 mr-2" /> {t("reservations.view")}
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {reservation.status !== "confirmed" && (
-                              <DropdownMenuItem onClick={() => updateStatus(reservation, "confirmed")}>
-                                <CheckCircle2 className="h-4 w-4 mr-2" /> {t("reservations.confirm")}
+                      <TableCell className="text-right">
+                        <div className="flex justify-end items-center gap-1">
+                          {/* Quick actions: confirm/cancel for pending */}
+                          {reservation.status === "pending" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-accent hover:text-accent hover:bg-accent/10"
+                                onClick={() => updateStatus(reservation, "confirmed")}
+                                title={t("reservations.confirm")}
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => updateStatus(reservation, "cancelled")}
+                                title={t("reservations.cancel")}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          {/* 3-dot menu for non-standard actions */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {reservation.status !== "pending" && reservation.status !== "confirmed" && (
+                                <DropdownMenuItem onClick={() => updateStatus(reservation, "confirmed")}>
+                                  <CheckCircle2 className="h-4 w-4 mr-2" /> {t("reservations.confirm")}
+                                </DropdownMenuItem>
+                              )}
+                              {reservation.status === "confirmed" && (
+                                <DropdownMenuItem onClick={() => updateStatus(reservation, "cancelled")}>
+                                  <XCircle className="h-4 w-4 mr-2" /> {t("reservations.cancel")}
+                                </DropdownMenuItem>
+                              )}
+                              {reservation.status !== "pending" && (
+                                <DropdownMenuItem onClick={() => updateStatus(reservation, "pending")}>
+                                  <RotateCcw className="h-4 w-4 mr-2" /> {t("reservations.restore")}
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteTarget(reservation)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> {t("reservations.delete")}
                               </DropdownMenuItem>
-                            )}
-                            {reservation.status !== "pending" && (
-                              <DropdownMenuItem onClick={() => updateStatus(reservation, "pending")}>
-                                <RotateCcw className="h-4 w-4 mr-2" /> {t("reservations.restore")}
-                              </DropdownMenuItem>
-                            )}
-                            {reservation.status !== "cancelled" && (
-                              <DropdownMenuItem onClick={() => updateStatus(reservation, "cancelled")}>
-                                <XCircle className="h-4 w-4 mr-2" /> {t("reservations.cancel")}
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteTarget(reservation)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" /> {t("reservations.delete")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </motion.tr>
                   ))}
