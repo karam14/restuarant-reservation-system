@@ -2,16 +2,21 @@
 
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { useTenant } from "@/lib/tenant-context";
+import { useTranslations } from "@/lib/use-translations";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 export default function CreateReservationPage() {
   const { tenant } = useTenant();
+  const { t } = useTranslations();
   const router = useRouter();
   const params = useParams();
   const tenantSlug = params.tenant as string;
@@ -28,7 +33,7 @@ export default function CreateReservationPage() {
     e.preventDefault();
 
     if (!tenant) {
-      toast.error("Tenant niet gevonden.");
+      toast.error(t("reservations.tenantNotFound"));
       return;
     }
 
@@ -52,64 +57,74 @@ export default function CreateReservationPage() {
     setLoading(false);
 
     if (error) {
-      console.error("Fout bij het maken van reservering:", error);
-      toast.error("Fout bij het opslaan van de reservering.");
+      console.error("Error creating reservation:", error);
+      toast.error(t("reservations.createError"));
     } else {
-      toast.success("Reservering succesvol aangemaakt.");
+      toast.success(t("reservations.createSuccess"));
       router.push(`/${tenantSlug}/reservations`);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold tracking-tight">
-        Nieuwe Reservering
-      </h1>
+    <motion.div
+      className="space-y-6 max-w-2xl"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={`/${tenantSlug}/reservations`}>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <h1 className="text-2xl font-bold tracking-tight">{t("reservations.createTitle")}</h1>
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Reservering Gegevens</CardTitle>
+          <CardTitle className="text-base">{t("reservations.createInfo")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="guest_name">Gastnaam</Label>
+              <Label htmlFor="guest_name">{t("reservations.guestName")}</Label>
               <Input
                 id="guest_name"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
-                placeholder="Volledige naam"
+                placeholder={t("reservations.namePlaceholder")}
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="guest_email">E-mailadres</Label>
+              <Label htmlFor="guest_email">{t("reservations.guestEmail")}</Label>
               <Input
                 id="guest_email"
                 type="email"
                 value={guestEmail}
                 onChange={(e) => setGuestEmail(e.target.value)}
-                placeholder="email@voorbeeld.nl"
+                placeholder={t("reservations.emailPlaceholder")}
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="guest_phone">Telefoonnummer</Label>
+              <Label htmlFor="guest_phone">{t("reservations.guestPhone")}</Label>
               <Input
                 id="guest_phone"
                 type="tel"
                 value={guestPhone}
                 onChange={(e) => setGuestPhone(e.target.value)}
-                placeholder="+31 6 12345678"
+                placeholder={t("reservations.phonePlaceholder")}
                 required
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="reservation_date">Datum</Label>
+                <Label htmlFor="reservation_date">{t("reservations.date")}</Label>
                 <Input
                   id="reservation_date"
                   type="date"
@@ -119,7 +134,7 @@ export default function CreateReservationPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reservation_time">Tijd</Label>
+                <Label htmlFor="reservation_time">{t("reservations.time")}</Label>
                 <Input
                   id="reservation_time"
                   type="time"
@@ -131,7 +146,7 @@ export default function CreateReservationPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="guests_count">Aantal gasten</Label>
+              <Label htmlFor="guests_count">{t("reservations.guestCount")}</Label>
               <Input
                 id="guests_count"
                 type="number"
@@ -144,19 +159,16 @@ export default function CreateReservationPage() {
 
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={loading}>
-                {loading ? "Bezig met opslaan..." : "Reservering Maken"}
+                {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {loading ? t("reservations.creating") : t("reservations.create")}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push(`/${tenantSlug}/reservations`)}
-              >
-                Annuleren
+              <Button type="button" variant="outline" onClick={() => router.push(`/${tenantSlug}/reservations`)}>
+                {t("common.cancel")}
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 }

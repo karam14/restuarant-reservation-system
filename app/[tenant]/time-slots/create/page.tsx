@@ -3,18 +3,21 @@
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useTenant } from "@/lib/tenant-context";
+import { useTranslations } from "@/lib/use-translations";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function CreateTimeSlotPage() {
   const { tenant, loading: tenantLoading } = useTenant();
+  const { t } = useTranslations();
   const params = useParams();
   const tenantSlug = params.tenant as string;
   const router = useRouter();
@@ -25,7 +28,6 @@ export default function CreateTimeSlotPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!tenant) return;
 
     setSubmitting(true);
@@ -39,11 +41,11 @@ export default function CreateTimeSlotPage() {
     ]);
 
     if (error) {
-      console.error("Fout bij het aanmaken van tijdslot:", error);
-      toast.error("Kon tijdslot niet aanmaken");
+      console.error("Error creating time slot:", error);
+      toast.error(t("timeSlots.toastCreateError"));
       setSubmitting(false);
     } else {
-      toast.success("Tijdslot aangemaakt");
+      toast.success(t("timeSlots.toastCreated"));
       router.push(`/${tenantSlug}/time-slots`);
     }
   };
@@ -52,41 +54,39 @@ export default function CreateTimeSlotPage() {
     return (
       <div className="max-w-lg mx-auto space-y-6">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full rounded-lg" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href={`/${tenantSlug}/time-slots`}>
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Terug
-          </Button>
-        </Link>
-        <h1 className="text-2xl font-bold tracking-tight">Nieuw Tijdslot</h1>
+    <motion.div
+      className="max-w-lg mx-auto space-y-6"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={`/${tenantSlug}/time-slots`}>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <h1 className="text-2xl font-bold tracking-tight">{t("timeSlots.createTitle")}</h1>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Tijdslot Gegevens</CardTitle>
+          <CardTitle className="text-base">{t("timeSlots.createInfo")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="slot_time">Tijd</Label>
-              <Input
-                id="slot_time"
-                type="time"
-                value={slotTime}
-                onChange={(e) => setSlotTime(e.target.value)}
-                required
-              />
+              <Label htmlFor="slot_time">{t("timeSlots.time")}</Label>
+              <Input id="slot_time" type="time" value={slotTime} onChange={(e) => setSlotTime(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="max_reservations">Max Reserveringen</Label>
+              <Label htmlFor="max_reservations">{t("timeSlots.maxReservations")}</Label>
               <Input
                 id="max_reservations"
                 type="number"
@@ -94,22 +94,21 @@ export default function CreateTimeSlotPage() {
                 value={maxReservations}
                 onChange={(e) => setMaxReservations(e.target.value)}
                 required
-                placeholder="Bijv. 10"
+                placeholder={t("timeSlots.maxPlaceholder")}
               />
             </div>
             <div className="flex gap-2 pt-2">
               <Button type="submit" disabled={submitting}>
-                {submitting ? "Bezig..." : "Tijdslot Aanmaken"}
+                {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {submitting ? t("common.saving") : t("timeSlots.createButton")}
               </Button>
-              <Link href={`/${tenantSlug}/time-slots`}>
-                <Button type="button" variant="outline">
-                  Annuleren
-                </Button>
-              </Link>
+              <Button type="button" variant="outline" asChild>
+                <Link href={`/${tenantSlug}/time-slots`}>{t("common.cancel")}</Link>
+              </Button>
             </div>
           </form>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 }
