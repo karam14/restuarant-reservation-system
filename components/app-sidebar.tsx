@@ -10,11 +10,13 @@ import {
   LogOut,
   ChevronsUpDown,
   Building2,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
 import { useTenant } from "@/lib/tenant-context";
+import { useTranslations } from "@/lib/use-translations";
 
 import {
   Sidebar,
@@ -33,15 +35,21 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const navItems = [
-  { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { title: "Reserveringen", icon: CalendarCheck, href: "/reservations" },
-  { title: "Tijdsloten", icon: Clock, href: "/time-slots" },
-  { title: "Weekrooster", icon: CalendarDays, href: "/schedule" },
-  { title: "Instellingen", icon: Settings, href: "/settings" },
+const NAV_KEYS = [
+  { key: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard" },
+  { key: "nav.reservations", icon: CalendarCheck, href: "/reservations" },
+  { key: "nav.timeSlots", icon: Clock, href: "/time-slots" },
+  { key: "nav.schedule", icon: CalendarDays, href: "/schedule" },
+  { key: "nav.settings", icon: Settings, href: "/settings" },
+];
+
+const LANGUAGES = [
+  { code: "nl", label: "Nederlands" },
+  { code: "en", label: "English" },
 ];
 
 export function AppSidebar() {
@@ -51,6 +59,7 @@ export function AppSidebar() {
   const session = useSession();
   const supabase = useSupabaseClient();
   const { tenant } = useTenant();
+  const { t, locale } = useTranslations();
   const tenantSlug = params.tenant as string;
   const [canSwitchTenant, setCanSwitchTenant] = useState(false);
 
@@ -60,7 +69,6 @@ export function AppSidebar() {
     async function checkMultiTenant() {
       const userId = session!.user.id;
 
-      // Check if super admin
       const { data: superAdmin } = await supabase
         .from("super_admins")
         .select("user_id")
@@ -72,7 +80,6 @@ export function AppSidebar() {
         return;
       }
 
-      // Check if user has multiple tenants
       const { data: tenants } = await supabase
         .from("user_tenants")
         .select("tenant_id")
@@ -89,6 +96,18 @@ export function AppSidebar() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
+  };
+
+  const switchLanguage = async (lang: string) => {
+    if (!tenant) return;
+    const { error } = await supabase
+      .from("tenants")
+      .update({ settings: { ...tenant.settings, locale: lang } })
+      .eq("id", tenant.id);
+
+    if (!error) {
+      window.location.reload();
+    }
   };
 
   return (
@@ -109,21 +128,42 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => {
+              {NAV_KEYS.map((item) => {
                 const fullHref = `/${tenantSlug}${item.href}`;
                 const isActive = pathname === fullHref || pathname.startsWith(fullHref + "/");
 
                 return (
-                  <SidebarMenuItem key={item.title}>
+                  <SidebarMenuItem key={item.key}>
                     <SidebarMenuButton asChild isActive={isActive}>
                       <Link href={fullHref}>
                         <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                        <span>{t(item.key)}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel>{t("nav.language")}</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {LANGUAGES.map((lang) => (
+                <SidebarMenuItem key={lang.code}>
+                  <SidebarMenuButton
+                    isActive={locale === lang.code}
+                    onClick={() => switchLanguage(lang.code)}
+                  >
+                    <Globe className="h-4 w-4" />
+                    <span>{lang.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -148,13 +188,16 @@ export function AppSidebar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-56">
                 {canSwitchTenant && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/select-tenant">Wissel van restaurant</Link>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/select-tenant">{t("nav.switchTenant")}</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
                 )}
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                   <LogOut className="h-4 w-4 mr-2" />
-                  Uitloggen
+                  {t("nav.logout")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
