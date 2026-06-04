@@ -193,55 +193,40 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Send a response immediately after the reservation is made
-  const response = new NextResponse(JSON.stringify({ message: 'Reservation successfully made' }), {
-    status: 200,
-    headers,
+  const emailHtml = await render(
+    <ReservationEmail
+      guestName={name}
+      reservationTime={formatted}
+      status="in afwachting"
+      emailAddress={tenant.email || `info@${LEGACY_DOMAIN}`}
+    />
+  );
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT || '587', 10),
+    secure: true,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
   });
 
-  // Send emails asynchronously
-  (async () => {
-    // Send confirmation email to the guest
-    const emailHtml = await render(
-      <ReservationEmail
-        guestName={name}
-        reservationTime={formatted}
-        status="in afwachting"
-        emailAddress={tenant.email || `info@${LEGACY_DOMAIN}`}
-      />
-    );
+  try {
+    await Promise.all([
+      transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: `Uw reservering bij ${tenant.name} is ontvangen`,
+        html: emailHtml,
+      }),
+      transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: tenant.email || `info@${LEGACY_DOMAIN}`,
+        subject: 'Nieuwe reservering ontvangen',
+        text: `Beste,
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: parseInt(process.env.EMAIL_PORT || '587', 10),
-      secure: true, // True for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    const guestMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: `Uw reservering bij ${tenant.name} is ontvangen`,
-      html: emailHtml,
-    };
-
-    try {
-      await transporter.sendMail(guestMailOptions);
-    } catch (error) {
-      console.error('Fout bij het verzenden van de bevestigingsmail:', error);
-    }
-
-    // Send notification email to the restaurant
-    const restaurantMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: tenant.email || `info@${LEGACY_DOMAIN}`,
-      subject: 'Nieuwe reservering ontvangen',
-      text: `Beste,
-
-Er is een nieuwe reservering gemaakt door ${name}. 
+Er is een nieuwe reservering gemaakt door ${name}.
 
 Details:
 - Datum en tijd: ${formatted}
@@ -253,14 +238,14 @@ U kunt de reservering bevestigen via de volgende link: https://restuarant-reserv
 
 Met vriendelijke groet,
 Het reserveringssysteem`,
-    };
+      }),
+    ]);
+  } catch (error) {
+    console.error('Fout bij het verzenden van e-mails:', error);
+  }
 
-    try {
-      await transporter.sendMail(restaurantMailOptions);
-    } catch (error) {
-      console.error('Fout bij het verzenden van de notificatiemail aan het restaurant:', error);
-    }
-  })();
-
-  return response;
+  return new NextResponse(JSON.stringify({ message: 'Reservation successfully made' }), {
+    status: 200,
+    headers,
+  });
 }
