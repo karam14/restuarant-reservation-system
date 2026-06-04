@@ -78,7 +78,8 @@ export default function Reservations() {
           guestName: reservation.guest_name,
           reservationTime: format(new Date(reservation.reservation_time), 'PPPp', { locale: nl }),
           status: 'bevestigd',
-          isConfirmation: true
+          isConfirmation: true,
+          tenantId: reservation.tenant_id,
         }),
       });
     }
@@ -87,14 +88,14 @@ export default function Reservations() {
   const handleCancel = async (id: number) => {
     const supabase = createClient();
     const { data: reservation, error } = await supabase.from('reservations').select('*').eq('id', id).single();
-  
+
     if (error) {
       console.error('Fout bij het ophalen van reservering:', error);
       return;
     }
-  
+
     const { error: updateError } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id);
-  
+
     if (updateError) {
       console.error('Fout bij het annuleren van reservering:', updateError);
     } else {
@@ -108,7 +109,8 @@ export default function Reservations() {
           guestName: reservation.guest_name,
           reservationTime: format(new Date(reservation.reservation_time), 'PPPp', { locale: nl }),
           status: 'geannuleerd',
-          isConfirmation: true
+          isConfirmation: true,
+          tenantId: reservation.tenant_id,
         }),
       });
     }

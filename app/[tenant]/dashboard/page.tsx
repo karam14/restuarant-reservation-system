@@ -124,6 +124,7 @@ export default function DashboardPage() {
           reservationTime: format(new Date(reservation.reservation_time), "PPPp", { locale: dateFnsLocale }),
           status: statusEmailMap[newStatus],
           isConfirmation: true,
+          tenantId: tenant?.id,
         }),
       });
     } catch {

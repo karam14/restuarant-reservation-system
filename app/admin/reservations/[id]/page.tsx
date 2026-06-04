@@ -10,7 +10,7 @@ import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
 export default function ReservationDetail() {
   const router = useRouter();
   const { id } = useParams();
-  const [reservation, setReservation] = useState(null);
+  const [reservation, setReservation] = useState<any>(null);
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
@@ -196,9 +196,10 @@ export default function ReservationDetail() {
           body: JSON.stringify({
             to: guestEmail,
             guestName,
-            reservationTime: format(utcToZonedTime(utcTime, 'Europe/Amsterdam'), 'PPPp', { locale: nl }), // Format for email
+            reservationTime: format(utcToZonedTime(utcTime, 'Europe/Amsterdam'), 'PPPp', { locale: nl }),
             status: emailStatus,
             isConfirmation: true,
+            tenantId: reservation?.tenant_id,
           }),
         });
       }
@@ -233,6 +234,7 @@ export default function ReservationDetail() {
           reservationTime: format(utcToZonedTime(reservation.reservation_time, 'Europe/Amsterdam'), 'PPPp', { locale: nl }),
           status: 'geannuleerd',
           isConfirmation: true,
+          tenantId: reservation.tenant_id,
         }),
       });
     }

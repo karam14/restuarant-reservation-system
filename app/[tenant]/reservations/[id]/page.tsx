@@ -60,7 +60,7 @@ function getStatusColor(status: string) {
   }
 }
 
-function sendStatusEmail(reservation: Reservation, status: string, dateFnsLocale: Locale) {
+function sendStatusEmail(reservation: Reservation, status: string, dateFnsLocale: Locale, tenantId?: string) {
   return fetch("/api/send-email", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -70,6 +70,7 @@ function sendStatusEmail(reservation: Reservation, status: string, dateFnsLocale
       reservationTime: format(new Date(reservation.reservation_time), "PPPp", { locale: dateFnsLocale }),
       status,
       isConfirmation: true,
+      tenantId,
     }),
   });
 }
@@ -213,7 +214,7 @@ export default function ReservationDetailPage() {
     setReservation(updated);
 
     try {
-      await sendStatusEmail(reservation, statusEmailMap[newStatus], dateFnsLocale);
+      await sendStatusEmail(reservation, statusEmailMap[newStatus], dateFnsLocale, tenant?.id);
     } catch {
       toast.error(t("reservations.toastEmailError"));
       setStatusLoading(null);

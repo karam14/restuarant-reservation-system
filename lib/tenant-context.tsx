@@ -10,6 +10,13 @@ interface Tenant {
   email: string | null;
   domain: string | null;
   settings: Record<string, any>;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_user: string | null;
+  smtp_pass: string | null;
+  smtp_secure: boolean | null;
+  logo_url: string | null;
+  brand_color: string | null;
 }
 
 interface TenantContextValue {

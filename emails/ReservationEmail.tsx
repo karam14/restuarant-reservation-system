@@ -12,8 +12,6 @@ import {
 } from "@react-email/components";
 import { Tailwind } from "@react-email/tailwind";
 import * as React from "react";
-import { format } from "date-fns";
-import { nl } from "date-fns/locale";
 
 type EmailProps = {
   guestName: string;
@@ -21,11 +19,14 @@ type EmailProps = {
   status: string;
   emailAddress: string;
   isConfirmation?: boolean;
+  restaurantName?: string;
+  logoUrl?: string;
+  brandColor?: string;
 };
 
-const baseUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "";
+const DEFAULT_RESTAURANT_NAME = "Athenes Olijf";
+const DEFAULT_LOGO_URL = "https://athenesolijf.nl/wp-content/uploads/2024/09/logo.png";
+const DEFAULT_BRAND_COLOR = "#4CAF50";
 
 export const ReservationEmail: React.FC<EmailProps> = ({
   guestName,
@@ -33,10 +34,13 @@ export const ReservationEmail: React.FC<EmailProps> = ({
   status,
   emailAddress,
   isConfirmation = false,
+  restaurantName = DEFAULT_RESTAURANT_NAME,
+  logoUrl = DEFAULT_LOGO_URL,
+  brandColor = DEFAULT_BRAND_COLOR,
 }) => {
   const isCancelled = status === "geannuleerd";
   const isPending = status === "in afwachting";
-  const statusColor = isCancelled ? "#FF0000" : isPending ? "#FFA500" : "#4CAF50";
+  const statusColor = isCancelled ? "#FF0000" : isPending ? "#FFA500" : brandColor;
   let formattedReservationTime = reservationTime;
 
   return (
@@ -44,15 +48,15 @@ export const ReservationEmail: React.FC<EmailProps> = ({
       <Head />
       <Preview>
         {isConfirmation
-          ? `Uw reservering bij Athenes Olijf is ${status}`
-          : "We hebben uw reservering ontvangen bij Athenes Olijf"}
+          ? `Uw reservering bij ${restaurantName} is ${status}`
+          : `We hebben uw reservering ontvangen bij ${restaurantName}`}
       </Preview>
       <Tailwind
         config={{
           theme: {
             extend: {
               colors: {
-                brand: "#4CAF50",
+                brand: brandColor,
                 offwhite: "#fafbfb",
                 lightGray: "#E8E8E8",
                 darkGray: "#333",
@@ -71,18 +75,20 @@ export const ReservationEmail: React.FC<EmailProps> = ({
       >
         <Body className="bg-offwhite text-base font-body">
           <Container className="bg-white p-20">
-            <div className="text-center">
-              <Img
-                src={`https://athenesolijf.nl/wp-content/uploads/2024/09/logo.png`}
-                width="400"
-                height="150"
-                alt="Athenes Olijf Logo"
-                className="mx-auto my-10"
-              />
-            </div>
+            {logoUrl && (
+              <div className="text-center">
+                <Img
+                  src={logoUrl}
+                  width="400"
+                  height="150"
+                  alt={`${restaurantName} Logo`}
+                  className="mx-auto my-10"
+                />
+              </div>
+            )}
             <Heading className="text-center my-0 leading-8 font-bold text-brand">
               {isConfirmation
-                ? `Uw Reservering bij Athenes Olijf`
+                ? `Uw Reservering bij ${restaurantName}`
                 : `We hebben uw reservering ontvangen`}
             </Heading>
 
@@ -107,7 +113,7 @@ export const ReservationEmail: React.FC<EmailProps> = ({
                   ) : isPending ? (
                     <>
                       Hartelijk dank voor uw reservering bij{" "}
-                      <strong>Athenes Olijf</strong>. We zijn verheugd om u binnenkort te
+                      <strong>{restaurantName}</strong>. We zijn verheugd om u binnenkort te
                       mogen verwelkomen.
                       <br />
                       <br />
@@ -119,7 +125,7 @@ export const ReservationEmail: React.FC<EmailProps> = ({
                   ) : (
                     <>
                       Hartelijk dank voor uw reservering bij{" "}
-                      <strong>Athenes Olijf</strong>. We zijn verheugd om u binnenkort te
+                      <strong>{restaurantName}</strong>. We zijn verheugd om u binnenkort te
                       mogen verwelkomen.
                       <br />
                       <br />
@@ -132,7 +138,7 @@ export const ReservationEmail: React.FC<EmailProps> = ({
                   <br />
                   <br />
                   Met vriendelijke groet,<br />
-                  Het Athenes Olijf Team
+                  Het {restaurantName} Team
                 </Text>
               </Row>
             </Section>
@@ -154,7 +160,7 @@ export const ReservationEmail: React.FC<EmailProps> = ({
 
           <Container className="mt-20">
             <Text className="text-center text-gray-400 mb-20 leading-6">
-              © 2024 Athenes Olijf. Alle rechten voorbehouden.
+              © {new Date().getFullYear()} {restaurantName}. Alle rechten voorbehouden.
             </Text>
           </Container>
         </Body>

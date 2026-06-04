@@ -207,29 +207,35 @@ export async function POST(
       reservationTime={formatted}
       status="in afwachting"
       emailAddress={tenant.email || ''}
+      restaurantName={tenant.name}
+      logoUrl={tenant.logo_url || undefined}
+      brandColor={tenant.brand_color || undefined}
     />
   );
 
+  const usesTenantSmtp = tenant.smtp_host && tenant.smtp_user && tenant.smtp_pass;
   const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT || '587', 10),
-    secure: true,
+    host: usesTenantSmtp ? tenant.smtp_host : process.env.EMAIL_HOST,
+    port: usesTenantSmtp ? (tenant.smtp_port || 587) : parseInt(process.env.EMAIL_PORT || '587', 10),
+    secure: usesTenantSmtp ? (tenant.smtp_secure ?? true) : true,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: usesTenantSmtp ? tenant.smtp_user : process.env.EMAIL_USER,
+      pass: usesTenantSmtp ? tenant.smtp_pass : process.env.EMAIL_PASS,
     },
   });
+
+  const fromAddress = usesTenantSmtp ? tenant.smtp_user : process.env.EMAIL_USER;
 
   try {
     await Promise.all([
       transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: fromAddress,
         to: email,
         subject: `Uw reservering bij ${tenant.name} is ontvangen`,
         html: emailHtml,
       }),
       transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: fromAddress,
         to: tenant.email,
         subject: 'Nieuwe reservering ontvangen',
         text: `Beste,

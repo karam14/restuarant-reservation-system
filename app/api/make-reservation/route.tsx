@@ -193,36 +193,44 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const tenantEmail = tenant.email || `info@${LEGACY_DOMAIN}`;
+
   const emailHtml = await render(
     <ReservationEmail
       guestName={name}
       reservationTime={formatted}
       status="in afwachting"
-      emailAddress={tenant.email || `info@${LEGACY_DOMAIN}`}
+      emailAddress={tenantEmail}
+      restaurantName={tenant.name}
+      logoUrl={tenant.logo_url || undefined}
+      brandColor={tenant.brand_color || undefined}
     />
   );
 
+  const usesTenantSmtp = tenant.smtp_host && tenant.smtp_user && tenant.smtp_pass;
   const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT || '587', 10),
-    secure: true,
+    host: usesTenantSmtp ? tenant.smtp_host : process.env.EMAIL_HOST,
+    port: usesTenantSmtp ? (tenant.smtp_port || 587) : parseInt(process.env.EMAIL_PORT || '587', 10),
+    secure: usesTenantSmtp ? (tenant.smtp_secure ?? true) : true,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: usesTenantSmtp ? tenant.smtp_user : process.env.EMAIL_USER,
+      pass: usesTenantSmtp ? tenant.smtp_pass : process.env.EMAIL_PASS,
     },
   });
+
+  const fromAddress = usesTenantSmtp ? tenant.smtp_user : process.env.EMAIL_USER;
 
   try {
     await Promise.all([
       transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: fromAddress,
         to: email,
         subject: `Uw reservering bij ${tenant.name} is ontvangen`,
         html: emailHtml,
       }),
       transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: tenant.email || `info@${LEGACY_DOMAIN}`,
+        from: fromAddress,
+        to: tenantEmail,
         subject: 'Nieuwe reservering ontvangen',
         text: `Beste,
 
