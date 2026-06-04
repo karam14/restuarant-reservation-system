@@ -12,7 +12,6 @@ import {
   Building2,
   Globe,
   Users,
-  PlusCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -47,7 +46,6 @@ const NAV_KEYS = [
   { key: "nav.timeSlots", icon: Clock, href: "/time-slots", superOnly: false },
   { key: "nav.schedule", icon: CalendarDays, href: "/schedule", superOnly: false },
   { key: "nav.users", icon: Users, href: "/users", superOnly: true },
-  { key: "nav.onboarding", icon: PlusCircle, href: "/onboarding", superOnly: true },
   { key: "nav.settings", icon: Settings, href: "/settings", superOnly: true },
 ];
 

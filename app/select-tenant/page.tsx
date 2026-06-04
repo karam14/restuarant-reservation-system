@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, ChevronRight } from "lucide-react";
+import { Building2, ChevronRight, PlusCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface TenantInfo {
@@ -123,6 +123,28 @@ export default function SelectTenantPage() {
               </CardContent>
             </Card>
           ))}
+
+          {isSuperAdmin && (
+            <Card
+              className="cursor-pointer hover:border-primary/50 transition-colors border-dashed"
+              onClick={() => router.push("/onboarding")}
+            >
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <PlusCircle className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Nieuw restaurant</p>
+                    <p className="text-xs text-muted-foreground">
+                      Onboard een nieuw restaurant
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
