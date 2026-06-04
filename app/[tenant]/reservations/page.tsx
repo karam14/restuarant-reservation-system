@@ -1,27 +1,18 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useTenant } from "@/lib/tenant-context";
 import { useTranslations } from "@/lib/use-translations";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import {
-  format,
-  parseISO,
-  isWithinInterval,
-} from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
 import { nl, enUS } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
+  Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,37 +21,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangePicker, getDefaultPresets } from "@/components/date-range-picker";
 import {
-  MoreHorizontal,
-  CheckCircle2,
-  XCircle,
-  RotateCcw,
-  Trash2,
-  Eye,
-  Plus,
-  Search,
-  Users,
-  ArrowUpDown,
-  ChevronUp,
-  ChevronDown,
-  Clock,
-  Loader2,
+  MoreHorizontal, CheckCircle2, XCircle, RotateCcw, Trash2,
+  Plus, Search, Users, ArrowUpDown, ChevronUp, ChevronDown,
+  Clock, Loader2,
 } from "lucide-react";
 
 interface Reservation {
@@ -78,16 +51,14 @@ type SortField = "reservation_time" | "guest_name" | "guests_count" | "created_a
 type SortDirection = "asc" | "desc";
 type DateFilterTarget = "reservation" | "creation";
 
+const PAGE_SIZE = 25;
 const STATUS_KEYS = ["pending", "confirmed", "cancelled"] as const;
 
 function getStatusColor(status: string) {
   switch (status) {
-    case "confirmed":
-      return "bg-accent/10 text-accent border-accent/20";
-    case "cancelled":
-      return "bg-destructive/10 text-destructive border-destructive/20";
-    default:
-      return "bg-warning/10 text-warning border-warning/20";
+    case "confirmed": return "bg-accent/10 text-accent border-accent/20";
+    case "cancelled": return "bg-destructive/10 text-destructive border-destructive/20";
+    default: return "bg-warning/10 text-warning border-warning/20";
   }
 }
 
@@ -112,10 +83,6 @@ const fadeIn = {
   transition: { duration: 0.2 },
 };
 
-const stagger = {
-  animate: { transition: { staggerChildren: 0.03 } },
-};
-
 export default function ReservationsPage() {
   const { tenant } = useTenant();
   const { t, locale } = useTranslations();
@@ -125,8 +92,12 @@ export default function ReservationsPage() {
   const tenantSlug = params.tenant as string;
 
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({ all: 0, pending: 0, confirmed: 0, cancelled: 0 });
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [dateFilterTarget, setDateFilterTarget] = useState<DateFilterTarget>("reservation");
@@ -138,29 +109,125 @@ export default function ReservationsPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const datePresets = useMemo(() => getDefaultPresets(t), [t]);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef(0);
 
+  // Debounce search
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const dateColumn = dateFilterTarget === "creation" ? "created_at" : "reservation_time";
+
+  function applyDateFilter(query: any) {
+    if (dateRange?.from) {
+      query = query.gte(dateColumn, startOfDay(dateRange.from).toISOString());
+    }
+    if (dateRange?.to) {
+      query = query.lte(dateColumn, endOfDay(dateRange.to).toISOString());
+    } else if (dateRange?.from) {
+      query = query.lte(dateColumn, endOfDay(dateRange.from).toISOString());
+    }
+    return query;
+  }
+
+  // Fetch status counts (lightweight — just id + status with date filter)
+  const fetchCounts = useCallback(async () => {
     if (!tenant) return;
     const supabase = createClient();
+    let query = supabase.from("reservations").select("status").eq("tenant_id", tenant.id);
+    query = applyDateFilter(query);
+    const { data } = await query;
 
-    async function fetchReservations() {
-      const { data, error } = await supabase
-        .from("reservations")
-        .select("*")
-        .eq("tenant_id", tenant!.id)
-        .order("created_at", { ascending: false });
+    const counts: Record<string, number> = { all: 0, pending: 0, confirmed: 0, cancelled: 0 };
+    (data ?? []).forEach((r: { status: string }) => {
+      counts.all++;
+      counts[r.status] = (counts[r.status] || 0) + 1;
+    });
+    setStatusCounts(counts);
+  }, [tenant, dateRange, dateFilterTarget]);
 
-      if (error) {
-        console.error("Error fetching reservations:", error);
-        toast.error(t("reservations.toastLoadError"));
-      } else {
-        setReservations(data ?? []);
-      }
-      setLoading(false);
+  // Fetch a page of reservations
+  const fetchPage = useCallback(async (page: number, reset: boolean) => {
+    if (!tenant) return;
+    if (reset) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
     }
 
-    fetchReservations();
-  }, [tenant]);
+    const supabase = createClient();
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    let query = supabase
+      .from("reservations")
+      .select("*")
+      .eq("tenant_id", tenant.id)
+      .order(sortField, { ascending: sortDirection === "asc" })
+      .range(from, to);
+
+    query = applyDateFilter(query);
+
+    if (statusFilter !== "all") {
+      query = query.eq("status", statusFilter);
+    }
+
+    if (debouncedSearch) {
+      const pattern = `%${debouncedSearch}%`;
+      query = query.or(`guest_name.ilike.${pattern},guest_email.ilike.${pattern},guest_phone.ilike.${pattern}`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error fetching reservations:", error);
+      toast.error(t("reservations.toastLoadError"));
+      setLoading(false);
+      setLoadingMore(false);
+      return;
+    }
+
+    const rows = data ?? [];
+    setHasMore(rows.length === PAGE_SIZE);
+
+    if (reset) {
+      setReservations(rows);
+    } else {
+      setReservations((prev) => [...prev, ...rows]);
+    }
+
+    setLoading(false);
+    setLoadingMore(false);
+  }, [tenant, statusFilter, debouncedSearch, dateRange, dateFilterTarget, sortField, sortDirection]);
+
+  // Reset and refetch when filters change
+  useEffect(() => {
+    pageRef.current = 0;
+    setSelectedIds(new Set());
+    fetchCounts();
+    fetchPage(0, true);
+  }, [tenant, statusFilter, debouncedSearch, dateRange, dateFilterTarget, sortField, sortDirection]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          pageRef.current += 1;
+          fetchPage(pageRef.current, false);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, fetchPage]);
 
   const statusEmailMap: Record<string, string> = {
     confirmed: "bevestigd",
@@ -184,6 +251,14 @@ export default function ReservationsPage() {
     setReservations((prev) =>
       prev.map((r) => (r.id === reservation.id ? { ...r, status: newStatus } : r))
     );
+
+    // Update counts locally
+    setStatusCounts((prev) => {
+      const next = { ...prev };
+      next[reservation.status] = Math.max(0, (next[reservation.status] || 0) - 1);
+      next[newStatus] = (next[newStatus] || 0) + 1;
+      return next;
+    });
 
     try {
       await sendStatusEmail(reservation, statusEmailMap[newStatus], dateFnsLocale);
@@ -217,11 +292,13 @@ export default function ReservationsPage() {
     }
 
     setReservations((prev) => prev.filter((r) => r.id !== reservation.id));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(reservation.id);
+    setStatusCounts((prev) => {
+      const next = { ...prev };
+      next.all = Math.max(0, next.all - 1);
+      next[reservation.status] = Math.max(0, (next[reservation.status] || 0) - 1);
       return next;
     });
+    setSelectedIds((prev) => { const next = new Set(prev); next.delete(reservation.id); return next; });
     setDeleteTarget(null);
     setActionLoading(false);
     toast.success(t("reservations.toastDeleted", { name: reservation.guest_name }));
@@ -243,6 +320,14 @@ export default function ReservationsPage() {
         toast.error(t("reservations.toastDeleteError"));
       } else {
         setReservations((prev) => prev.filter((r) => !selectedIds.has(r.id)));
+        setStatusCounts((prev) => {
+          const next = { ...prev };
+          selected.forEach((r) => {
+            next.all = Math.max(0, next.all - 1);
+            next[r.status] = Math.max(0, (next[r.status] || 0) - 1);
+          });
+          return next;
+        });
         toast.success(t("reservations.toastBulkDeleted", { count: selected.length }));
       }
     } else {
@@ -261,60 +346,12 @@ export default function ReservationsPage() {
     setActionLoading(false);
   };
 
-  const filteredReservations = useMemo(() => {
-    return reservations
-      .filter((r) => {
-        if (statusFilter !== "all" && r.status !== statusFilter) return false;
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          if (
-            !r.guest_name.toLowerCase().includes(q) &&
-            !r.guest_email.toLowerCase().includes(q) &&
-            !(r.guest_phone && r.guest_phone.includes(q))
-          )
-            return false;
-        }
-        if (dateRange?.from) {
-          const dateField = dateFilterTarget === "creation" ? r.created_at : r.reservation_time;
-          const d = parseISO(dateField);
-          const interval = { start: dateRange.from, end: dateRange.to || dateRange.from };
-          if (!isWithinInterval(d, interval)) return false;
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        let cmp = 0;
-        switch (sortField) {
-          case "guest_name":
-            cmp = a.guest_name.localeCompare(b.guest_name);
-            break;
-          case "guests_count":
-            cmp = a.guests_count - b.guests_count;
-            break;
-          case "created_at":
-            cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-            break;
-          default:
-            cmp = new Date(a.reservation_time).getTime() - new Date(b.reservation_time).getTime();
-        }
-        return sortDirection === "asc" ? cmp : -cmp;
-      });
-  }, [reservations, statusFilter, searchQuery, dateRange, dateFilterTarget, sortField, sortDirection]);
-
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: reservations.length, pending: 0, confirmed: 0, cancelled: 0 };
-    reservations.forEach((r) => {
-      counts[r.status] = (counts[r.status] || 0) + 1;
-    });
-    return counts;
-  }, [reservations]);
-
   const allVisibleSelected =
-    filteredReservations.length > 0 && filteredReservations.every((r) => selectedIds.has(r.id));
+    reservations.length > 0 && reservations.every((r) => selectedIds.has(r.id));
 
   const toggleAll = () => {
     if (allVisibleSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(filteredReservations.map((r) => r.id)));
+    else setSelectedIds(new Set(reservations.map((r) => r.id)));
   };
 
   const toggleOne = (id: number) => {
@@ -328,43 +365,29 @@ export default function ReservationsPage() {
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-    else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
+    else { setSortField(field); setSortDirection("desc"); }
   };
 
   const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <button onClick={() => handleSort(field)} className="flex items-center gap-1 hover:text-foreground transition-colors">
       {children}
       {sortField === field ? (
-        sortDirection === "asc" ? (
-          <ChevronUp className="h-3 w-3" />
-        ) : (
-          <ChevronDown className="h-3 w-3" />
-        )
+        sortDirection === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
       ) : (
         <ArrowUpDown className="h-3 w-3 opacity-40" />
       )}
     </button>
   );
 
-  if (loading) {
+  if (loading && reservations.length === 0) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-32 mt-2" />
-          </div>
+          <div><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-32 mt-2" /></div>
           <Skeleton className="h-10 w-44" />
         </div>
         <Skeleton className="h-10 w-full max-w-md" />
-        <div className="flex gap-3">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-10 w-44" />
-          <Skeleton className="h-10 w-44" />
-        </div>
+        <div className="flex gap-3"><Skeleton className="h-10 w-64" /><Skeleton className="h-10 w-44" /></div>
         <Skeleton className="h-[400px] w-full rounded-lg" />
       </div>
     );
@@ -378,8 +401,8 @@ export default function ReservationsPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t("reservations.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {t("reservations.subtitle", {
-              filtered: filteredReservations.length,
-              total: reservations.length,
+              filtered: statusFilter === "all" ? statusCounts.all : statusCounts[statusFilter] || 0,
+              total: statusCounts.all,
             })}
           </p>
         </div>
@@ -392,26 +415,16 @@ export default function ReservationsPage() {
       </div>
 
       {/* Status Tabs */}
-      <Tabs
-        value={statusFilter}
-        onValueChange={(v) => {
-          setStatusFilter(v);
-          setSelectedIds(new Set());
-        }}
-      >
+      <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setSelectedIds(new Set()); }}>
         <TabsList>
           <TabsTrigger value="all">
             {t("reservations.all")}
-            <Badge variant="secondary" className="ml-2 text-xs">
-              {statusCounts.all}
-            </Badge>
+            <Badge variant="secondary" className="ml-2 text-xs">{statusCounts.all}</Badge>
           </TabsTrigger>
           {STATUS_KEYS.map((s) => (
             <TabsTrigger key={s} value={s}>
               {t(`reservations.${s}`)}
-              <Badge variant="secondary" className="ml-2 text-xs">
-                {statusCounts[s]}
-              </Badge>
+              <Badge variant="secondary" className="ml-2 text-xs">{statusCounts[s]}</Badge>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -442,18 +455,8 @@ export default function ReservationsPage() {
           placeholder={t("reservations.allDates")}
           triggerClassName="w-auto min-w-[200px]"
           secondaryOptions={[
-            {
-              label: t("reservations.reservationDate"),
-              value: "reservation",
-              active: dateFilterTarget === "reservation",
-              onClick: () => setDateFilterTarget("reservation"),
-            },
-            {
-              label: t("reservations.creationDate"),
-              value: "creation",
-              active: dateFilterTarget === "creation",
-              onClick: () => setDateFilterTarget("creation"),
-            },
+            { label: t("reservations.reservationDate"), value: "reservation", active: dateFilterTarget === "reservation", onClick: () => setDateFilterTarget("reservation") },
+            { label: t("reservations.creationDate"), value: "creation", active: dateFilterTarget === "creation", onClick: () => setDateFilterTarget("creation") },
           ]}
         />
       </motion.div>
@@ -464,9 +467,7 @@ export default function ReservationsPage() {
           <motion.div {...fadeIn}>
             <Card>
               <CardContent className="py-3 flex items-center gap-3 flex-wrap">
-                <span className="text-sm font-medium">
-                  {selectedIds.size} {t("reservations.selected")}
-                </span>
+                <span className="text-sm font-medium">{selectedIds.size} {t("reservations.selected")}</span>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" className="text-accent border-accent/30" onClick={() => setBulkAction("confirmed")}>
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> {t("reservations.confirm")}
@@ -499,30 +500,16 @@ export default function ReservationsPage() {
                 <TableHead className="w-12">
                   <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAll} aria-label="Select all" />
                 </TableHead>
-                <TableHead>
-                  <SortHeader field="guest_name">{t("reservations.guest")}</SortHeader>
-                </TableHead>
-                <TableHead>
-                  <SortHeader field="reservation_time">{t("reservations.dateTime")}</SortHeader>
-                </TableHead>
-                <TableHead>
-                  <SortHeader field="guests_count">
-                    <Users className="h-3.5 w-3.5 mr-1" />
-                    {t("reservations.guests")}
-                  </SortHeader>
-                </TableHead>
+                <TableHead><SortHeader field="guest_name">{t("reservations.guest")}</SortHeader></TableHead>
+                <TableHead><SortHeader field="reservation_time">{t("reservations.dateTime")}</SortHeader></TableHead>
+                <TableHead><SortHeader field="guests_count"><Users className="h-3.5 w-3.5 mr-1" />{t("reservations.guests")}</SortHeader></TableHead>
                 <TableHead>{t("reservations.status")}</TableHead>
-                <TableHead>
-                  <SortHeader field="created_at">
-                    <Clock className="h-3.5 w-3.5 mr-1" />
-                    {t("reservations.createdAt")}
-                  </SortHeader>
-                </TableHead>
+                <TableHead><SortHeader field="created_at"><Clock className="h-3.5 w-3.5 mr-1" />{t("reservations.createdAt")}</SortHeader></TableHead>
                 <TableHead className="text-right">{t("reservations.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredReservations.length === 0 ? (
+              {reservations.length === 0 && !loading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
                     {t("reservations.noResults")}
@@ -530,14 +517,14 @@ export default function ReservationsPage() {
                 </TableRow>
               ) : (
                 <AnimatePresence mode="popLayout">
-                  {filteredReservations.map((reservation, i) => (
+                  {reservations.map((reservation, i) => (
                     <motion.tr
                       key={reservation.id}
                       layout
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.2, delay: i < 20 ? i * 0.02 : 0 }}
+                      transition={{ duration: 0.2, delay: i < PAGE_SIZE ? i * 0.02 : 0 }}
                       className={`border-b transition-colors hover:bg-muted/50 cursor-pointer ${selectedIds.has(reservation.id) ? "bg-muted/50" : ""}`}
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest("button, [role=checkbox], a, [data-radix-collection-item]")) return;
@@ -559,12 +546,8 @@ export default function ReservationsPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">
-                            {format(new Date(reservation.reservation_time), "d MMM yyyy", { locale: dateFnsLocale })}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(reservation.reservation_time), "HH:mm")}
-                          </p>
+                          <p className="font-medium">{format(new Date(reservation.reservation_time), "d MMM yyyy", { locale: dateFnsLocale })}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(reservation.reservation_time), "HH:mm")}</p>
                         </div>
                       </TableCell>
                       <TableCell>{reservation.guests_count}</TableCell>
@@ -574,44 +557,24 @@ export default function ReservationsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(reservation.created_at), "d MMM yyyy", { locale: dateFnsLocale })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(reservation.created_at), "HH:mm")}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{format(new Date(reservation.created_at), "d MMM yyyy", { locale: dateFnsLocale })}</p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(reservation.created_at), "HH:mm")}</p>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end items-center gap-1">
-                          {/* Quick actions: confirm/cancel for pending */}
                           {reservation.status === "pending" && (
                             <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-accent hover:text-accent hover:bg-accent/10"
-                                onClick={() => updateStatus(reservation, "confirmed")}
-                                title={t("reservations.confirm")}
-                              >
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-accent hover:text-accent hover:bg-accent/10" onClick={() => updateStatus(reservation, "confirmed")} title={t("reservations.confirm")}>
                                 <CheckCircle2 className="h-4 w-4" />
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => updateStatus(reservation, "cancelled")}
-                                title={t("reservations.cancel")}
-                              >
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => updateStatus(reservation, "cancelled")} title={t("reservations.cancel")}>
                                 <XCircle className="h-4 w-4" />
                               </Button>
                             </>
                           )}
-                          {/* 3-dot menu for non-standard actions */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               {reservation.status !== "pending" && reservation.status !== "confirmed" && (
@@ -630,10 +593,7 @@ export default function ReservationsPage() {
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => setDeleteTarget(reservation)}
-                              >
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(reservation)}>
                                 <Trash2 className="h-4 w-4 mr-2" /> {t("reservations.delete")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -646,6 +606,21 @@ export default function ReservationsPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} className="h-1" />
+
+          {loadingMore && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {!hasMore && reservations.length > 0 && (
+            <p className="text-center text-xs text-muted-foreground py-3">
+              {t("reservations.subtitle", { filtered: reservations.length, total: statusCounts.all })}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -655,22 +630,15 @@ export default function ReservationsPage() {
           <DialogHeader>
             <DialogTitle>{t("reservations.deleteConfirmTitle")}</DialogTitle>
             <DialogDescription>
-              {deleteTarget &&
-                t("reservations.deleteConfirmDesc", {
-                  name: deleteTarget.guest_name,
-                  date: format(new Date(deleteTarget.reservation_time), "d MMM yyyy HH:mm", { locale: dateFnsLocale }),
-                })}
+              {deleteTarget && t("reservations.deleteConfirmDesc", {
+                name: deleteTarget.guest_name,
+                date: format(new Date(deleteTarget.reservation_time), "d MMM yyyy HH:mm", { locale: dateFnsLocale }),
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={actionLoading}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteTarget && deleteReservation(deleteTarget)}
-              disabled={actionLoading}
-            >
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={actionLoading}>{t("common.cancel")}</Button>
+            <Button variant="destructive" onClick={() => deleteTarget && deleteReservation(deleteTarget)} disabled={actionLoading}>
               {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {actionLoading ? t("reservations.deleting") : t("common.delete")}
             </Button>
@@ -683,24 +651,17 @@ export default function ReservationsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {bulkAction === "delete"
-                ? t("reservations.bulkDeleteTitle", { count: selectedIds.size })
-                : bulkAction === "confirmed"
-                  ? t("reservations.bulkConfirmTitle", { count: selectedIds.size })
-                  : bulkAction === "cancelled"
-                    ? t("reservations.bulkCancelTitle", { count: selectedIds.size })
-                    : t("reservations.bulkRestoreTitle", { count: selectedIds.size })}
+              {bulkAction === "delete" ? t("reservations.bulkDeleteTitle", { count: selectedIds.size })
+                : bulkAction === "confirmed" ? t("reservations.bulkConfirmTitle", { count: selectedIds.size })
+                : bulkAction === "cancelled" ? t("reservations.bulkCancelTitle", { count: selectedIds.size })
+                : t("reservations.bulkRestoreTitle", { count: selectedIds.size })}
             </DialogTitle>
             <DialogDescription>
-              {bulkAction === "delete"
-                ? t("reservations.bulkDeleteDesc")
-                : t("reservations.bulkUpdateDesc")}
+              {bulkAction === "delete" ? t("reservations.bulkDeleteDesc") : t("reservations.bulkUpdateDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkAction(null)} disabled={actionLoading}>
-              {t("common.cancel")}
-            </Button>
+            <Button variant="outline" onClick={() => setBulkAction(null)} disabled={actionLoading}>{t("common.cancel")}</Button>
             <Button
               variant={bulkAction === "delete" || bulkAction === "cancelled" ? "destructive" : "default"}
               onClick={() => bulkAction && handleBulkAction(bulkAction)}
