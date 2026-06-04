@@ -294,17 +294,21 @@ export default function ReservationsPage() {
       return;
     }
 
-    setReservations((prev) => prev.filter((r) => r.id !== reservation.id));
-    setStatusCounts((prev) => {
-      const next = { ...prev };
-      next.all = Math.max(0, next.all - 1);
-      next[reservation.status] = Math.max(0, (next[reservation.status] || 0) - 1);
-      return next;
-    });
-    setSelectedIds((prev) => { const next = new Set(prev); next.delete(reservation.id); return next; });
     setDeleteTarget(null);
     setActionLoading(false);
-    toast.success(t("reservations.toastDeleted", { name: reservation.guest_name }));
+
+    requestAnimationFrame(() => {
+      setReservations((prev) => prev.filter((r) => r.id !== reservation.id));
+      setStatusCounts((prev) => {
+        const next = { ...prev };
+        next.all = Math.max(0, next.all - 1);
+        next[reservation.status] = Math.max(0, (next[reservation.status] || 0) - 1);
+        return next;
+      });
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(reservation.id); return next; });
+      document.body.style.pointerEvents = "";
+      toast.success(t("reservations.toastDeleted", { name: reservation.guest_name }));
+    });
   };
 
   const handleBulkAction = async (action: string) => {
@@ -581,7 +585,7 @@ export default function ReservationsPage() {
                               />
                             </>
                           )}
-                          <DropdownMenu>
+                          <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title={t("reservations.moreActions")}>
                                 <MoreHorizontal className="h-4 w-4" />
