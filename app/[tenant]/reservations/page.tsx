@@ -587,22 +587,24 @@ export default function ReservationsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {reservation.status !== "pending" && reservation.status !== "confirmed" && (
-                                <DropdownMenuItem onClick={() => updateStatus(reservation, "confirmed")}>
-                                  <CheckCircle2 className="h-4 w-4 mr-2" /> {t("reservations.confirm")}
-                                </DropdownMenuItem>
-                              )}
                               {reservation.status === "confirmed" && (
                                 <DropdownMenuItem onClick={() => updateStatus(reservation, "cancelled")}>
                                   <XCircle className="h-4 w-4 mr-2" /> {t("reservations.cancel")}
                                 </DropdownMenuItem>
                               )}
-                              {reservation.status !== "pending" && (
-                                <DropdownMenuItem onClick={() => updateStatus(reservation, "pending")}>
-                                  <RotateCcw className="h-4 w-4 mr-2" /> {t("reservations.restore")}
+                              {reservation.status === "cancelled" && (
+                                <DropdownMenuItem onClick={() => updateStatus(reservation, "confirmed")}>
+                                  <CheckCircle2 className="h-4 w-4 mr-2" /> {t("reservations.confirm")}
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuSeparator />
+                              {reservation.status !== "pending" && (
+                                <>
+                                  <DropdownMenuItem onClick={() => updateStatus(reservation, "pending")}>
+                                    <RotateCcw className="h-4 w-4 mr-2" /> {t("reservations.restore")}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
                               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(reservation)}>
                                 <Trash2 className="h-4 w-4 mr-2" /> {t("reservations.delete")}
                               </DropdownMenuItem>

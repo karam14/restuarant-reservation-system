@@ -361,30 +361,30 @@ export default function DashboardPage() {
                                 />
                               </>
                             )}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("reservations.moreActions")}>
-                                  <MoreHorizontal className="h-3.5 w-3.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {r.status !== "pending" && r.status !== "confirmed" && (
-                                  <DropdownMenuItem onClick={() => updateStatus(r, "confirmed")}>
-                                    <CheckCircle2 className="h-4 w-4 mr-2" /> {t("reservations.confirm")}
-                                  </DropdownMenuItem>
-                                )}
-                                {r.status === "confirmed" && (
-                                  <DropdownMenuItem onClick={() => updateStatus(r, "cancelled")}>
-                                    <XCircle className="h-4 w-4 mr-2" /> {t("reservations.cancel")}
-                                  </DropdownMenuItem>
-                                )}
-                                {r.status !== "pending" && (
+                            {r.status !== "pending" && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title={t("reservations.moreActions")}>
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {r.status === "confirmed" && (
+                                    <DropdownMenuItem onClick={() => updateStatus(r, "cancelled")}>
+                                      <XCircle className="h-4 w-4 mr-2" /> {t("reservations.cancel")}
+                                    </DropdownMenuItem>
+                                  )}
+                                  {r.status === "cancelled" && (
+                                    <DropdownMenuItem onClick={() => updateStatus(r, "confirmed")}>
+                                      <CheckCircle2 className="h-4 w-4 mr-2" /> {t("reservations.confirm")}
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem onClick={() => updateStatus(r, "pending")}>
                                     <RotateCcw className="h-4 w-4 mr-2" /> {t("reservations.restore")}
                                   </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </div>
                         </td>
                       </tr>
