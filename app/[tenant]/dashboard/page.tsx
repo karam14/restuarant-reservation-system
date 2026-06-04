@@ -5,7 +5,10 @@ import { createClient } from "@/utils/supabase/client";
 import { useTenant } from "@/lib/tenant-context";
 import { useTranslations } from "@/lib/use-translations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarCheck, Clock, CheckCircle, Users } from "lucide-react";
+import {
+  CalendarCheck, Clock, CheckCircle, Users, CheckCircle2,
+  XCircle, RotateCcw, Trash2, MoreHorizontal,
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { nl, enUS } from "date-fns/locale";
@@ -23,7 +26,13 @@ import {
 } from "recharts";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { useParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { useParams, useRouter } from "next/navigation";
 
 interface DashboardStats {
   todayTotal: number;
@@ -35,6 +44,7 @@ interface DashboardStats {
 interface Reservation {
   id: string;
   guest_name: string;
+  guest_email: string;
   reservation_time: string;
   guests_count: number;
   status: string;
@@ -62,12 +72,70 @@ export default function DashboardPage() {
   const { t, locale } = useTranslations();
   const dateFnsLocale = locale === "nl" ? nl : enUS;
   const params = useParams();
+  const router = useRouter();
   const tenantSlug = params.tenant as string;
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentReservations, setRecentReservations] = useState<Reservation[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [dayOfWeekData, setDayOfWeekData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const statusEmailMap: Record<string, string> = {
+    confirmed: "bevestigd",
+    cancelled: "geannuleerd",
+    pending: "in afwachting",
+  };
+
+  const updateStatus = async (reservation: Reservation, newStatus: string) => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("reservations")
+      .update({ status: newStatus })
+      .eq("id", reservation.id)
+      .eq("tenant_id", tenant!.id);
+
+    if (error) {
+      toast.error(t("reservations.toastStatusError"));
+      return;
+    }
+
+    setRecentReservations((prev) =>
+      prev.map((r) => (r.id === reservation.id ? { ...r, status: newStatus } : r))
+    );
+
+    if (stats) {
+      const oldStatus = reservation.status;
+      setStats({
+        ...stats,
+        pending: stats.pending + (newStatus === "pending" ? 1 : 0) - (oldStatus === "pending" ? 1 : 0),
+        confirmed: stats.confirmed + (newStatus === "confirmed" ? 1 : 0) - (oldStatus === "confirmed" ? 1 : 0),
+      });
+    }
+
+    try {
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: reservation.guest_email,
+          guestName: reservation.guest_name,
+          reservationTime: format(new Date(reservation.reservation_time), "PPPp", { locale: dateFnsLocale }),
+          status: statusEmailMap[newStatus],
+          isConfirmation: true,
+        }),
+      });
+    } catch {
+      toast.error(t("reservations.toastEmailError"));
+      return;
+    }
+
+    const toastKeyMap: Record<string, string> = {
+      confirmed: "reservations.toastConfirmed",
+      cancelled: "reservations.toastCancelled",
+      pending: "reservations.toastRestored",
+    };
+    toast.success(t(toastKeyMap[newStatus], { name: reservation.guest_name }));
+  };
 
   useEffect(() => {
     if (!tenant) return;
@@ -248,15 +316,21 @@ export default function DashboardPage() {
                       <th className="text-left py-2 font-medium">{t("dashboard.dateTime")}</th>
                       <th className="text-left py-2 font-medium">{t("dashboard.guests")}</th>
                       <th className="text-left py-2 font-medium">{t("dashboard.status")}</th>
+                      <th className="text-right py-2 font-medium">{t("reservations.actions")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {recentReservations.map((r) => (
-                      <tr key={r.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+                      <tr
+                        key={r.id}
+                        className="border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest("button, [data-radix-collection-item]")) return;
+                          router.push(`/${tenantSlug}/reservations/${r.id}`);
+                        }}
+                      >
                         <td className="py-2">
-                          <Link href={`/${tenantSlug}/reservations/${r.id}`} className="font-medium hover:underline">
-                            {r.guest_name}
-                          </Link>
+                          <span className="font-medium">{r.guest_name}</span>
                         </td>
                         <td className="py-2 text-muted-foreground">
                           {format(new Date(r.reservation_time), "d MMM HH:mm", { locale: dateFnsLocale })}
@@ -266,6 +340,56 @@ export default function DashboardPage() {
                           <Badge variant="outline" className={getStatusColor(r.status)}>
                             {t(`reservations.${r.status}`)}
                           </Badge>
+                        </td>
+                        <td className="py-2 text-right">
+                          <div className="flex justify-end items-center gap-1">
+                            {r.status === "pending" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 text-accent hover:text-accent hover:bg-accent/10"
+                                  onClick={() => updateStatus(r, "confirmed")}
+                                  title={t("reservations.confirm")}
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => updateStatus(r, "cancelled")}
+                                  title={t("reservations.cancel")}
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
+                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                  <MoreHorizontal className="h-3.5 w-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {r.status !== "pending" && r.status !== "confirmed" && (
+                                  <DropdownMenuItem onClick={() => updateStatus(r, "confirmed")}>
+                                    <CheckCircle2 className="h-4 w-4 mr-2" /> {t("reservations.confirm")}
+                                  </DropdownMenuItem>
+                                )}
+                                {r.status === "confirmed" && (
+                                  <DropdownMenuItem onClick={() => updateStatus(r, "cancelled")}>
+                                    <XCircle className="h-4 w-4 mr-2" /> {t("reservations.cancel")}
+                                  </DropdownMenuItem>
+                                )}
+                                {r.status !== "pending" && (
+                                  <DropdownMenuItem onClick={() => updateStatus(r, "pending")}>
+                                    <RotateCcw className="h-4 w-4 mr-2" /> {t("reservations.restore")}
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </td>
                       </tr>
                     ))}
