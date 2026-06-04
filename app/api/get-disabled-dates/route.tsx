@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/client';
 
+const LEGACY_DOMAIN = 'athenesolijf.nl';
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': `https://${LEGACY_DOMAIN}`,
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const startDate = searchParams.get('startDate');
@@ -9,29 +16,35 @@ export async function GET(req: NextRequest) {
   if (!startDate || !endDate) {
     return new NextResponse(JSON.stringify({ error: 'Start date and end date are required' }), {
       status: 400,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
+      headers: CORS_HEADERS,
     });
   }
 
   const supabase = createClient();
 
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('domain', LEGACY_DOMAIN)
+    .single();
+
+  if (!tenant) {
+    return new NextResponse(JSON.stringify({ error: 'Tenant not found' }), {
+      status: 500,
+      headers: CORS_HEADERS,
+    });
+  }
+
   // Fetch weekly schedule to see which days of week are disabled
   const { data: weeklySchedule, error: weeklyError } = await supabase
     .from('weekly_schedule')
-    .select('day_of_week, is_enabled');
+    .select('day_of_week, is_enabled')
+    .eq('tenant_id', tenant.id);
 
   if (weeklyError) {
     return new NextResponse(JSON.stringify({ error: 'Error fetching weekly schedule' }), {
       status: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
+      headers: CORS_HEADERS,
     });
   }
 
@@ -47,17 +60,14 @@ export async function GET(req: NextRequest) {
   const { data: specificDays, error: daysError } = await supabase
     .from('days')
     .select('day_date, is_enabled')
+    .eq('tenant_id', tenant.id)
     .gte('day_date', startDate)
     .lte('day_date', endDate);
 
   if (daysError) {
     return new NextResponse(JSON.stringify({ error: 'Error fetching specific days' }), {
       status: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
+      headers: CORS_HEADERS,
     });
   }
 
@@ -98,27 +108,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return new NextResponse(JSON.stringify({ 
+  return new NextResponse(JSON.stringify({
     disabledDates,
-    enabledDates 
+    enabledDates
   }), {
     status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
+    headers: CORS_HEADERS,
   });
 }
 
 export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, {
     status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
+    headers: CORS_HEADERS,
   });
 }
 

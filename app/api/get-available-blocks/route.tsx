@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/client';
 
+const LEGACY_DOMAIN = 'athenesolijf.nl';
+const CORS_HEADERS = { 'Access-Control-Allow-Origin': `https://${LEGACY_DOMAIN}` };
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const date = searchParams.get('date');
@@ -8,13 +11,24 @@ export async function GET(req: NextRequest) {
   if (!date) {
     return new NextResponse(JSON.stringify({ error: 'Date is required' }), {
       status: 400,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-      },
+      headers: CORS_HEADERS,
     });
   }
 
   const supabase = createClient();
+
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('domain', LEGACY_DOMAIN)
+    .single();
+
+  if (!tenant) {
+    return new NextResponse(JSON.stringify({ error: 'Tenant not found' }), {
+      status: 500,
+      headers: CORS_HEADERS,
+    });
+  }
 
   // Get day of week (0=Sunday, 1=Monday, ..., 6=Saturday)
   const dateObj = new Date(date + 'T00:00:00');
@@ -25,14 +39,13 @@ export async function GET(req: NextRequest) {
     .from('days')
     .select('id, is_enabled')
     .eq('day_date', date)
+    .eq('tenant_id', tenant.id)
     .single();
 
   if (dayError && dayError.code !== 'PGRST116') {  // Handle no rows found error
     return new NextResponse(JSON.stringify({ error: 'Error fetching day data' }), {
       status: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-      },
+      headers: CORS_HEADERS,
     });
   }
 
@@ -43,9 +56,7 @@ export async function GET(req: NextRequest) {
     // Day is explicitly disabled, return empty time slots
     return new NextResponse(JSON.stringify({ timeSlots: [] }), {
       status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-      },
+      headers: CORS_HEADERS,
     });
   }
 
@@ -78,14 +89,13 @@ export async function GET(req: NextRequest) {
       .from('weekly_schedule')
       .select('id, is_enabled')
       .eq('day_of_week', dayOfWeek)
+      .eq('tenant_id', tenant.id)
       .single();
 
     if (weeklyScheduleError && weeklyScheduleError.code !== 'PGRST116') {
       return new NextResponse(JSON.stringify({ error: 'Error fetching weekly schedule' }), {
         status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-        },
+        headers: CORS_HEADERS,
       });
     }
 
@@ -93,9 +103,7 @@ export async function GET(req: NextRequest) {
     if (weeklySchedule && !weeklySchedule.is_enabled) {
       return new NextResponse(JSON.stringify({ timeSlots: [] }), {
         status: 200,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-        },
+        headers: CORS_HEADERS,
       });
     }
 
@@ -124,19 +132,18 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Fallback to all standard time slots if no weekly schedule or no weekly time slots
+  // Fallback to all standard time slots for this tenant
   if (timeSlots.length === 0) {
     const { data: standardSlots, error: standardSlotsError } = await supabase
       .from('time_slot_templates')
       .select('id, slot_time')
+      .eq('tenant_id', tenant.id)
       .order('slot_time', { ascending: true });
 
     if (standardSlotsError) {
       return new NextResponse(JSON.stringify({ error: 'Error fetching standard time slots' }), {
         status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-        },
+        headers: CORS_HEADERS,
       });
     }
 
@@ -148,8 +155,6 @@ export async function GET(req: NextRequest) {
 
   return new NextResponse(JSON.stringify({ timeSlots }), {
     status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': 'https://athenesolijf.nl',
-    },
+    headers: CORS_HEADERS,
   });
 }
