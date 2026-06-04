@@ -62,6 +62,7 @@ export function AppSidebar() {
   const { t, locale } = useTranslations();
   const tenantSlug = params.tenant as string;
   const [canSwitchTenant, setCanSwitchTenant] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -76,6 +77,7 @@ export function AppSidebar() {
         .single();
 
       if (superAdmin) {
+        setIsSuperAdmin(true);
         setCanSwitchTenant(true);
         return;
       }
@@ -128,7 +130,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_KEYS.map((item) => {
+              {NAV_KEYS.filter((item) => item.key !== "nav.settings" || isSuperAdmin).map((item) => {
                 const fullHref = `/${tenantSlug}${item.href}`;
                 const isActive = pathname === fullHref || pathname.startsWith(fullHref + "/");
 

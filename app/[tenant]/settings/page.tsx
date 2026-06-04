@@ -4,6 +4,8 @@ import { useTenant } from "@/lib/tenant-context";
 import { useTranslations } from "@/lib/use-translations";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +20,10 @@ import { Loader2, Mail, Palette, Server } from "lucide-react";
 export default function SettingsPage() {
   const { tenant, loading } = useTenant();
   const { t } = useTranslations();
+  const router = useRouter();
+  const session = useSession();
+  const supabase = useSupabaseClient();
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -50,14 +56,35 @@ export default function SettingsPage() {
     }
   }, [tenant]);
 
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    async function checkSuperAdmin() {
+      const { data } = await supabase
+        .from("super_admins")
+        .select("user_id")
+        .eq("user_id", session!.user.id)
+        .single();
+
+      if (data) {
+        setAuthorized(true);
+      } else {
+        setAuthorized(false);
+        router.replace(`/${tenant?.slug || ""}/dashboard`);
+      }
+    }
+
+    checkSuperAdmin();
+  }, [session, supabase, tenant, router]);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!tenant) return;
 
     setSaving(true);
-    const supabase = createClient();
+    const supabaseClient = createClient();
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("tenants")
       .update({
         name,
@@ -111,7 +138,7 @@ export default function SettingsPage() {
     setTestingSmtp(false);
   }
 
-  if (loading) {
+  if (loading || authorized === null) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -120,10 +147,8 @@ export default function SettingsPage() {
     );
   }
 
-  if (!tenant) {
-    return (
-      <div className="p-4 text-muted-foreground">{t("settings.notFound")}</div>
-    );
+  if (!tenant || !authorized) {
+    return null;
   }
 
   return (
