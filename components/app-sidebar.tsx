@@ -11,6 +11,8 @@ import {
   ChevronsUpDown,
   Building2,
   Globe,
+  Users,
+  PlusCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -40,11 +42,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const NAV_KEYS = [
-  { key: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { key: "nav.reservations", icon: CalendarCheck, href: "/reservations" },
-  { key: "nav.timeSlots", icon: Clock, href: "/time-slots" },
-  { key: "nav.schedule", icon: CalendarDays, href: "/schedule" },
-  { key: "nav.settings", icon: Settings, href: "/settings" },
+  { key: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard", superOnly: false },
+  { key: "nav.reservations", icon: CalendarCheck, href: "/reservations", superOnly: false },
+  { key: "nav.timeSlots", icon: Clock, href: "/time-slots", superOnly: false },
+  { key: "nav.schedule", icon: CalendarDays, href: "/schedule", superOnly: false },
+  { key: "nav.users", icon: Users, href: "/users", superOnly: true },
+  { key: "nav.onboarding", icon: PlusCircle, href: "/onboarding", superOnly: true },
+  { key: "nav.settings", icon: Settings, href: "/settings", superOnly: true },
 ];
 
 const LANGUAGES = [
@@ -130,7 +134,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_KEYS.filter((item) => item.key !== "nav.settings" || isSuperAdmin).map((item) => {
+              {NAV_KEYS.filter((item) => !item.superOnly || isSuperAdmin).map((item) => {
                 const fullHref = `/${tenantSlug}${item.href}`;
                 const isActive = pathname === fullHref || pathname.startsWith(fullHref + "/");
 
